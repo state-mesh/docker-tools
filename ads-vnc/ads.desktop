@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Terminal=false
+Icon=htop
+Name=ApacheDirectoryStudio
+Exec=/ApacheDirectoryStudio/ApacheDirectoryStudio
+Categories=Utility;
