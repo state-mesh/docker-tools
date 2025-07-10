@@ -2,13 +2,13 @@
 
 set -e
 
-if [ -n "$MYSQL_HOST" ] && [ -n "$MYSQL_PASSWORD" ] && [ -n "$MYSQL_DBNAME" ]; then
-  echo "Creating database if not exists..."
-  echo "CREATE DATABASE IF NOT EXISTS $MYSQL_DBNAME;" | mysql -h $MYSQL_HOST -P ${MYSQL_PORT:-3306} -uroot -p$MYSQL_PASSWORD || {
-    echo "Failed to create database $MYSQL_DBNAME" >&2
-    exit 1
-  }
-fi
+#if [ -n "$MYSQL_HOST" ] && [ -n "$MYSQL_PASSWORD" ] && [ -n "$MYSQL_DBNAME" ]; then
+#  echo "Creating database if not exists..."
+#  echo "CREATE DATABASE IF NOT EXISTS $MYSQL_DBNAME;" | mysql -h $MYSQL_HOST -P ${MYSQL_PORT:-3306} -uroot -p$MYSQL_PASSWORD || {
+#    echo "Failed to create database $MYSQL_DBNAME" >&2
+#    exit 0
+#  }
+#fi
 
 # -----------------------------------------------------------------------------
 # Usage and command-line argument parsing
