@@ -7,6 +7,11 @@ CONFIG=$WORK_DIR/axolotl_solved.yaml
 echo "Preparing config file"
 envsubst < $WORK_DIR/axolotl.yaml > $CONFIG
 
+if [ -n "${DEEPSPEED}" ]; then
+  echo "DeepSpeed is enabled. Fetching configs"
+  axolotl fetch deepspeed_configs
+fi
+
 echo "Training base model: ${BASE_MODEL}"
 axolotl train $CONFIG
 
