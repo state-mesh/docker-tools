@@ -18,4 +18,8 @@ RUN chmod +x /usr/bin/train
 
 COPY quantization.py /scripts
 
+# Apply Axolotl code patches
+# Patch for deepspeed config bug
+COPY patch/utils/trainer.py /workspace/axolotl/src/axolotl/utils/trainer.py
+
 ENTRYPOINT ["/bin/bash","-c","--"]
