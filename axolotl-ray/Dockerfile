@@ -9,6 +9,9 @@ RUN pip install lakefs-spec
 RUN pip install fbgemm-gpu-genai==1.3.0
 RUN pip install llmcompressor
 
+RUN wget -q https://densemax.s3.eu-central-1.amazonaws.com/lakectl -O /usr/bin/lakectl
+RUN chmod +x /usr/bin/lakectl
+
 ENV PYTHONUNBUFFERED=1
 RUN mkdir -p /opt/work
 RUN mkdir /scripts

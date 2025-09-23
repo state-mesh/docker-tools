@@ -4,6 +4,9 @@ set -e
 
 CONFIG=$WORK_DIR/axolotl_solved.yaml
 
+echo "Downloading model ${BASE_MODEL}"
+lakectl fs download -r lakefs://$BASE_MODEL/ $WORK_DIR/model
+
 echo "Preparing config file"
 envsubst < $WORK_DIR/axolotl.yaml > $CONFIG
 
@@ -11,6 +14,12 @@ if [ -n "${DEEPSPEED}" ]; then
   echo "DeepSpeed is enabled. Fetching configs"
   axolotl fetch deepspeed_configs
 fi
+
+echo "Downloading dataset ${DATASET}"
+lakectl fs download -r lakefs://$DATASET/ $WORK_DIR/dataset
+
+echo "Preprocessing dataset"
+axolotl preprocess $CONFIG
 
 echo "Training base model: ${BASE_MODEL}"
 axolotl train $CONFIG
@@ -25,3 +34,7 @@ else
   echo "Running quantization using LLMCompressor"
   python /scripts/quantization.py
 fi
+
+echo "Uploading final model to a new branch"
+lakectl branch create lakefs://$BASE_MODEL-$BRANCH -s lakefs://$BASE_MODEL
+lakectl fs upload -rs $WORK_DIR/outputs/$BASE_MODEL/quantized/ lakefs://$BASE_MODEL-$BRANCH/

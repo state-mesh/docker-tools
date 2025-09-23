@@ -5,7 +5,8 @@ from llmcompressor.modifiers.awq import AWQModifier
 from llmcompressor import oneshot
 
 model_dir = os.path.expandvars("$WORK_DIR/outputs/$BASE_MODEL/merged")
-out_dir = os.path.expandvars("$WORK_DIR/outputs/$BASE_MODEL/final")
+out_dir = os.path.expandvars("$WORK_DIR/outputs/$BASE_MODEL/quantized")
+ds_dir = os.path.expandvars("$WORK_DIR/dataset")
 
 model = AutoModelForCausalLM.from_pretrained(
     model_dir,
@@ -25,7 +26,7 @@ def to_chat(example):
         )
     }
 
-ds = load_dataset("invergent/self-cognition-qwen3", split=f"train[:256]").shuffle(seed=42)
+ds = load_dataset(ds_dir, split=f"train[:256]").shuffle(seed=42)
 keep_cols = ["text"] if "text" in ds.column_names else ds.column_names
 ds = ds.map(to_chat, remove_columns=[c for c in keep_cols if c != "text"])
 
