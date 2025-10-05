@@ -57,6 +57,13 @@ RUN git clone https://github.com/invergent-ai/axolotl.git && \
     pip install -r requirements.txt && \
     pip install --no-build-isolation -e .[deepspeed,flash-attn,ring-flash-attn,optimizers,ray]
 
+RUN mkdir -p /opt/densemax/eval && \
+    conda create -n eval python=3.12.3 -y
+SHELL ["conda", "run", "-n", "eval", "/bin/bash", "-c"]
+WORKDIR /opt/densemax/eval
+RUN pip install -U deepeval && \
+    pip install deepteam
+
 WORKDIR /opt/densemax
 
 RUN curl -o /usr/bin/lakectl https://densemax.s3.eu-central-1.amazonaws.com/lakectl && \
@@ -75,4 +82,7 @@ RUN rm /opt/vllm-0.11.0rc2.dev70+ge47433b3c.d20250930.cu129-cp38-abi3-linux_x86_
 # Custom scripts (keep this section at the end for easy image updates)
 COPY train/* /opt/densemax/train
 RUN chmod a+x /opt/densemax/train/train.sh
+
+COPY quant/* /opt/densemax/quant
+RUN chmod a+x /opt/densemax/quant/quantize.sh
 
