@@ -17,7 +17,7 @@ ENV PATH=$CONDA_DIR/bin:$PATH
 
 # Uncomment the line below for building torch from scratch
 # RUN python -m pip install --no-build-isolation -v -e .
-COPY torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl /opt
+ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/torch-2.8.0a0%2B5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl /opt
 
 WORKDIR /opt
 ADD https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh /opt
@@ -31,9 +31,9 @@ SHELL ["conda", "run", "-n", "quant", "/bin/bash", "-c"]
 RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl "llmcompressor==0.8.0"
 
 # Serving
-COPY vllm-0.11.0rc2.dev70+ge47433b3c.d20250930.cu129-cp38-abi3-linux_x86_64.whl /opt
-COPY xformers-0.0.33+5146f2ab.d20250930-cp39-abi3-linux_x86_64.whl /opt
-COPY flashinfer_python-0.3.1-cp39-abi3-linux_x86_64.whl /opt
+ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/vllm-0.11.0rc2.dev70%2Bge47433b3c.d20250930.cu129-cp38-abi3-linux_x86_64.whl /opt
+ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/xformers-0.0.33%2B5146f2ab.d20250930-cp39-abi3-linux_x86_64.whl /opt
+ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/flashinfer_python-0.3.1-cp39-abi3-linux_x86_64.whl /opt
 RUN cd /opt/densemax/serve && conda create -n serve python=3.12.3 -y
 SHELL ["conda", "run", "-n", "serve", "/bin/bash", "-c"]
 RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl && \
