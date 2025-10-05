@@ -2,6 +2,8 @@
 
 set -e
 
+conda activate train
+
 CONFIG=$WORK_DIR/axolotl_solved.yaml
 
 echo "Downloading model ${BASE_MODEL}"
@@ -32,6 +34,7 @@ if [[ "${TORCHAO}" == "true" ]]; then
   axolotl quantize $CONFIG --base-model=$WORK_DIR/outputs/$BASE_MODEL/merged/
 else
   echo "Running quantization using LLMCompressor"
+  conda activate quant
   python /scripts/quantization.py
 fi
 
