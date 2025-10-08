@@ -44,11 +44,13 @@ RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.wh
     pip uninstall -y pynvml
 
 # Training
+ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl /opt
 RUN cd /opt/densemax/train && conda create -n train python=3.12.3 -y
 SHELL ["conda", "run", "-n", "train", "/bin/bash", "-c"]
 WORKDIR /opt/densemax/train
 RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl && \
     pip install /opt/xformers-0.0.33+5146f2ab.d20250930-cp39-abi3-linux_x86_64.whl && \
+    pip install /opt/flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl && \
     pip install "cut-cross-entropy[transformers] @ git+https://github.com/axolotl-ai-cloud/ml-cross-entropy.git@147ea28" && \
     pip install "ray[default,serve]==2.49.1"
 
