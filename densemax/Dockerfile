@@ -2,7 +2,7 @@ FROM nvcr.io/nvidia/pytorch:25.06-py3
 
 RUN apt-get update && apt-get install -y gettext && \
     pip uninstall -y torch distributed-ucxx pylibcudf cudf cupy-cuda12x numba thinc pyarrow numpy dask-cuda cuml cugraph-service-server nx-cugraph distributed-ucx pylibcugraph cugraph kvikio dask-cudf librosa spacy && \
-    mkdir -p /opt/densemax/{quant,train,serve,mod}
+    mkdir -p /opt/densemax/{quant,train,serve}
 
 COPY common/* /opt/nvidia/entrypoint.d
 
@@ -44,12 +44,14 @@ RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.wh
     pip uninstall -y pynvml
 
 # Training
+ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl /opt
 RUN cd /opt/densemax/train && conda create -n train python=3.12.11 -y
 SHELL ["conda", "run", "-n", "train", "/bin/bash", "-c"]
 WORKDIR /opt/densemax/train
 RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl && \
     pip install aim && \
     pip install /opt/xformers-0.0.33+5146f2ab.d20250930-cp39-abi3-linux_x86_64.whl && \
+    pip install /opt/flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl && \
     pip install "cut-cross-entropy[transformers] @ git+https://github.com/axolotl-ai-cloud/ml-cross-entropy.git@147ea28"
 
 RUN git clone --depth=1 https://github.com/invergent-ai/axolotl.git && \
