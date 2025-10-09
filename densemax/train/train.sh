@@ -2,8 +2,7 @@
 
 set -e
 
-conda activate train
-
+export PYTHONUNBUFFERED=1
 CONFIG=$WORK_DIR/axolotl_solved.yaml
 
 echo "Downloading model ${BASE_MODEL}"
@@ -34,8 +33,7 @@ if [[ "${TORCHAO}" == "true" ]]; then
   axolotl quantize $CONFIG --base-model=$WORK_DIR/outputs/$BASE_MODEL/merged/
 else
   echo "Running quantization using LLMCompressor"
-  conda activate quant
-  python /scripts/quantization.py
+  exec stdbuf -oL -eL conda run -n quant --no-capture-output quant
 fi
 
 echo "Uploading final model to a new branch"

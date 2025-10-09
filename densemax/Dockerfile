@@ -2,7 +2,7 @@ FROM nvcr.io/nvidia/pytorch:25.06-py3
 
 RUN apt-get update && apt-get install -y gettext && \
     pip uninstall -y torch distributed-ucxx pylibcudf cudf cupy-cuda12x numba thinc pyarrow numpy dask-cuda cuml cugraph-service-server nx-cugraph distributed-ucx pylibcugraph cugraph kvikio dask-cudf librosa spacy && \
-    mkdir -p /opt/densemax/{quant,train,serve}
+    mkdir -p /opt/densemax/{quant,train,serve,mod}
 
 COPY common/* /opt/nvidia/entrypoint.d
 
@@ -26,7 +26,7 @@ RUN sh ./Miniforge3-Linux-x86_64.sh -b -p /opt/miniforge && \
     conda init
 
 # Quantization
-RUN cd /opt/densemax/quant && conda create -n quant python=3.12.3 -y
+RUN cd /opt/densemax/quant && conda create -n quant python=3.12.11 -y
 SHELL ["conda", "run", "-n", "quant", "/bin/bash", "-c"]
 RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl "llmcompressor==0.8.0"
 
@@ -34,7 +34,7 @@ RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.wh
 ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/vllm-0.11.0rc2.dev70%2Bge47433b3c.d20250930.cu129-cp38-abi3-linux_x86_64.whl /opt
 ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/xformers-0.0.33%2B5146f2ab.d20250930-cp39-abi3-linux_x86_64.whl /opt
 ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/flashinfer_python-0.3.1-cp39-abi3-linux_x86_64.whl /opt
-RUN cd /opt/densemax/serve && conda create -n serve python=3.12.3 -y
+RUN cd /opt/densemax/serve && conda create -n serve python=3.12.11 -y
 SHELL ["conda", "run", "-n", "serve", "/bin/bash", "-c"]
 RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl && \
     pip install /opt/xformers-0.0.33+5146f2ab.d20250930-cp39-abi3-linux_x86_64.whl && \
@@ -44,27 +44,30 @@ RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.wh
     pip uninstall -y pynvml
 
 # Training
-RUN cd /opt/densemax/train && conda create -n train python=3.12.3 -y
+RUN cd /opt/densemax/train && conda create -n train python=3.12.11 -y
 SHELL ["conda", "run", "-n", "train", "/bin/bash", "-c"]
 WORKDIR /opt/densemax/train
 RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl && \
+    pip install aim && \
     pip install /opt/xformers-0.0.33+5146f2ab.d20250930-cp39-abi3-linux_x86_64.whl && \
-    pip install "cut-cross-entropy[transformers] @ git+https://github.com/axolotl-ai-cloud/ml-cross-entropy.git@147ea28" && \
-    pip install "ray[default,serve]==2.49.1"
+    pip install "cut-cross-entropy[transformers] @ git+https://github.com/axolotl-ai-cloud/ml-cross-entropy.git@147ea28"
 
-RUN git clone https://github.com/invergent-ai/axolotl.git && \
+RUN git clone --depth=1 https://github.com/invergent-ai/axolotl.git && \
     cd axolotl && \
     pip install -r requirements.txt && \
-    pip install --no-build-isolation -e .[deepspeed,flash-attn,ring-flash-attn,optimizers,ray]
+    pip install --no-build-isolation -e .[deepspeed,flash-attn,ring-flash-attn,optimizers,ray] && \
+    pip install --no-cache-dir "ray[default,serve,tune]==2.49.1"
 
 RUN mkdir -p /opt/densemax/eval && \
-    conda create -n eval python=3.12.3 -y
+    conda create -n eval python=3.12.1 -y
 SHELL ["conda", "run", "-n", "eval", "/bin/bash", "-c"]
 WORKDIR /opt/densemax/eval
 RUN pip install -U deepeval && \
     pip install deepteam
 
+SHELL ["conda", "run", "-n", "base", "/bin/bash", "-c"]
 WORKDIR /opt/densemax
+RUN pip install --no-cache-dir "ray[default,serve]==2.49.1"
 
 RUN curl -o /usr/bin/lakectl https://densemax.s3.eu-central-1.amazonaws.com/lakectl && \
     chmod +x /usr/bin/lakectl
@@ -80,9 +83,20 @@ RUN rm /opt/vllm-0.11.0rc2.dev70+ge47433b3c.d20250930.cu129-cp38-abi3-linux_x86_
     apt-get clean
 
 # Custom scripts (keep this section at the end for easy image updates)
-COPY train/* /opt/densemax/train
-RUN chmod a+x /opt/densemax/train/train.sh
+RUN mkdir /scripts
+COPY train/quantization.py /scripts
+COPY quant/quantize.py /scripts
 
-COPY quant/* /opt/densemax/quant
-RUN chmod a+x /opt/densemax/quant/quantize.sh
+COPY job-entry.sh /usr/bin/job-entry
+RUN chmod a+x /usr/bin/job-entry
 
+COPY train/quant.sh /usr/bin/quant
+RUN chmod a+x /usr/bin/quant
+
+COPY train/train.sh /usr/bin/train
+RUN chmod a+x /usr/bin/train
+
+COPY quant/quantize.sh /usr/bin/quantize
+RUN chmod a+x /usr/bin/quantize
+
+ENTRYPOINT ["/bin/bash","-c","--"]
