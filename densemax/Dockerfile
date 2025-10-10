@@ -31,16 +31,16 @@ SHELL ["conda", "run", "-n", "quant", "/bin/bash", "-c"]
 RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl "llmcompressor==0.8.0"
 
 # Serving
-ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/vllm-0.11.0rc2.dev70%2Bge47433b3c.d20250930.cu129-cp38-abi3-linux_x86_64.whl /opt
-ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/xformers-0.0.33%2B5146f2ab.d20250930-cp39-abi3-linux_x86_64.whl /opt
-ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/flashinfer_python-0.3.1-cp39-abi3-linux_x86_64.whl /opt
+ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/vllm-0.11.0rc2.dev356%2Bge246ad6f0.d20251010.cu129-cp38-abi3-linux_x86_64.whl /opt
+ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/xformers-0.0.33%2Bf2043594.d20251009-cp39-abi3-linux_x86_64.whl /opt
 RUN cd /opt/densemax/serve && conda create -n serve python=3.12.11 -y
 SHELL ["conda", "run", "-n", "serve", "/bin/bash", "-c"]
+RUN sed -i '/nvidia-cudnn-frontend/d' /etc/pip/constraint.txt
 RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl && \
-    pip install /opt/xformers-0.0.33+5146f2ab.d20250930-cp39-abi3-linux_x86_64.whl && \
-    pip install /opt/flashinfer_python-0.3.1-cp39-abi3-linux_x86_64.whl && \
-    pip install /opt/vllm-0.11.0rc2.dev70+ge47433b3c.d20250930.cu129-cp38-abi3-linux_x86_64.whl && \
-    pip install "triton==3.3.1" && \
+    pip install /opt/xformers-0.0.33+f2043594.d20251009-cp39-abi3-linux_x86_64.whl && \
+    pip install /opt/vllm-0.11.0rc2.dev356+ge246ad6f0.d20251010.cu129-cp38-abi3-linux_x86_64.whl && \
+    pip install "triton==3.3.1" "flashinfer-python==0.4.0" "flashinfer-cubin==0.4.0" && \
+    pip install "flashinfer-jit-cache==0.4.0" --extra-index-url https://flashinfer.ai/whl/cu$(echo $CUDA_VERSION | cut -d. -f1,2 | tr -d '.') && \
     pip uninstall -y pynvml
 
 # Training
@@ -50,7 +50,7 @@ SHELL ["conda", "run", "-n", "train", "/bin/bash", "-c"]
 WORKDIR /opt/densemax/train
 RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl && \
     pip install aim && \
-    pip install /opt/xformers-0.0.33+5146f2ab.d20250930-cp39-abi3-linux_x86_64.whl && \
+    pip install /opt/xformers-0.0.33+f2043594.d20251009-cp39-abi3-linux_x86_64.whl && \
     pip install /opt/flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl && \
     pip install "cut-cross-entropy[transformers] @ git+https://github.com/axolotl-ai-cloud/ml-cross-entropy.git@147ea28"
 
@@ -75,10 +75,7 @@ RUN curl -o /usr/bin/lakectl https://densemax.s3.eu-central-1.amazonaws.com/lake
     chmod +x /usr/bin/lakectl
 
 # Cleanup
-RUN rm /opt/vllm-0.11.0rc2.dev70+ge47433b3c.d20250930.cu129-cp38-abi3-linux_x86_64.whl && \
-    rm /opt/xformers-0.0.33+5146f2ab.d20250930-cp39-abi3-linux_x86_64.whl && \
-    rm /opt/flashinfer_python-0.3.1-cp39-abi3-linux_x86_64.whl && \
-    rm /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl && \
+RUN rm /opt/*.whl && \
     rm -rf /opt/pytorch && \
     rm -rf /usr/local/lib/python3.12/dist-packages && \
     rm -rf /root/.cache/pip && \
