@@ -20,7 +20,7 @@ ENV PATH=$CONDA_DIR/bin:$PATH
 ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/torch-2.8.0a0%2B5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl /opt
 
 WORKDIR /opt
-ADD https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh /opt
+ADD https://github.com/conda-forge/miniforge/releases/download/25.3.1-0/Miniforge3-25.3.1-0-Linux-x86_64.sh /opt
 RUN sh ./Miniforge3-Linux-x86_64.sh -b -p /opt/miniforge && \
     rm ./Miniforge3-Linux-x86_64.sh && \
     conda init
