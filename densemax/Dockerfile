@@ -1,22 +1,5 @@
 FROM nvcr.io/nvidia/pytorch:25.06-py3
 
-RUN apt-get update && apt-get install -y gettext pybind11-dev cmake \
-    && pip uninstall -y torch distributed-ucxx pylibcudf cudf cupy-cuda12x numba thinc pyarrow numpy dask-cuda cuml cugraph-service-server nx-cugraph distributed-ucx pylibcugraph cugraph kvikio dask-cudf librosa spacy \
-    && mkdir -p /opt/densemax/{quant,train,serve,eval} \
-    && ldconfig /usr/local/cuda-$(echo $CUDA_VERSION | cut -d. -f1,2)/compat/ \
-    && curl -LsSf https://astral.sh/uv/install.sh | sh \
-    && mv ~/.local/bin/uv /usr/local/bin/ \
-    && mv ~/.local/bin/uvx /usr/local/bin/
-
-COPY common/* /opt/nvidia/entrypoint.d
-
-WORKDIR /opt
-ADD https://github.com/conda-forge/miniforge/releases/download/25.3.1-0/Miniforge3-25.3.1-0-Linux-x86_64.sh /opt
-RUN sh ./Miniforge3-25.3.1-0-Linux-x86_64.sh -b -p /opt/miniforge \
-    && rm ./Miniforge3-25.3.1-0-Linux-x86_64.sh \
-    && conda init
-
-WORKDIR /opt/pytorch/pytorch
 ENV PYTORCH_BUILD_VERSION="2.8.0a0+5228986c39"
 ENV PYTORCH_VERSION="2.8.0a0+5228986c39"
 ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;9.0;10.0;12.0+PTX"
@@ -28,8 +11,26 @@ ENV CUDA_ARCH_LIST="8.0 8.6 9.0 10.0 12.0"
 ENV FLASH_ATTN_CUDA_ARCHS="80;90;100;110;120"
 ENV CONDA_DIR=/opt/miniforge
 ENV PATH=$CONDA_DIR/bin:$PATH
-ENV LD_LIBRARY_PATH=/usr/local/cuda/compat/lib.real:$LD_LIBRARY_PATH
 ENV NIXL_PLUGIN_DIR=/usr/local/nixl/lib/x86_64-linux-gnu/plugins
+
+RUN apt-get update && apt-get install -y gettext pybind11-dev cmake \
+    && pip uninstall -y torch distributed-ucxx pylibcudf cudf cupy-cuda12x numba thinc pyarrow numpy dask-cuda cuml cugraph-service-server nx-cugraph distributed-ucx pylibcugraph cugraph kvikio dask-cudf librosa spacy \
+    && mkdir -p /opt/densemax/{quant,train,serve,eval} \
+    && ldconfig /usr/local/cuda-$(echo $CUDA_VERSION | cut -d. -f1,2)/compat/ \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && mv ~/.local/bin/uv /usr/local/bin/ \
+    && mv ~/.local/bin/uvx /usr/local/bin/
+
+COPY common/* /opt/nvidia/entrypoint.d
+
+WORKDIR /opt
+RUN wget https://github.com/conda-forge/miniforge/releases/download/25.3.1-0/Miniforge3-25.3.1-0-Linux-x86_64.sh \
+    && sh ./Miniforge3-25.3.1-0-Linux-x86_64.sh -b -p /opt/miniforge \
+    && rm ./Miniforge3-25.3.1-0-Linux-x86_64.sh \
+    && conda init
+
+WORKDIR /opt/pytorch/pytorch
+
 
 # Uncomment the line below for building torch from scratch
 # RUN python -m pip install --no-build-isolation -v -e .
@@ -138,3 +139,4 @@ COPY quant/quantize.sh /usr/bin/quantize
 RUN chmod a+x /usr/bin/quantize
 
 ENTRYPOINT ["/bin/bash","-c","--"]
+
