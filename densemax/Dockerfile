@@ -12,8 +12,8 @@ COPY common/* /opt/nvidia/entrypoint.d
 
 WORKDIR /opt
 ADD https://github.com/conda-forge/miniforge/releases/download/25.3.1-0/Miniforge3-25.3.1-0-Linux-x86_64.sh /opt
-RUN sh ./Miniforge3-Linux-x86_64.sh -b -p /opt/miniforge \
-    && rm ./Miniforge3-Linux-x86_64.sh \
+RUN sh ./Miniforge3-25.3.1-0-Linux-x86_64.sh -b -p /opt/miniforge \
+    && rm ./Miniforge3-25.3.1-0-Linux-x86_64.sh \
     && conda init
 
 WORKDIR /opt/pytorch/pytorch
