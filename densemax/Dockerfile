@@ -4,7 +4,7 @@ ENV PYTORCH_BUILD_VERSION="2.8.0a0+5228986c39"
 ENV PYTORCH_VERSION="2.8.0a0+5228986c39"
 ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;9.0;10.0;12.0+PTX"
 ENV CMAKE_CUDA_ARCHITECTURES="80;90;100;110;120"
-ENV NCCL_P2P_DISABLE=1
+ENV NCCL_P2P_DISABLE=0
 ENV NCCL_IB_DISABLE=0
 ENV CUDA_ARCHS="8.0 8.6 9.0 10.0 12.0"
 ENV CUDA_ARCH_LIST="8.0 8.6 9.0 10.0 12.0"
@@ -13,7 +13,7 @@ ENV CONDA_DIR=/opt/miniforge
 ENV PATH=$CONDA_DIR/bin:$PATH
 ENV NIXL_PLUGIN_DIR=/usr/local/nixl/lib/x86_64-linux-gnu/plugins
 
-RUN apt-get update && apt-get install -y gettext pybind11-dev cmake \
+RUN apt-get update && apt-get install -y gettext pybind11-dev cmake libwebp-dev \
     && pip uninstall -y torch distributed-ucxx pylibcudf cudf cupy-cuda12x numba thinc pyarrow numpy dask-cuda cuml cugraph-service-server nx-cugraph distributed-ucx pylibcugraph cugraph kvikio dask-cudf librosa spacy \
     && mkdir -p /opt/densemax/{quant,train,serve,eval} \
     && ldconfig /usr/local/cuda-$(echo $CUDA_VERSION | cut -d. -f1,2)/compat/ \
@@ -47,11 +47,13 @@ ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/xformers-0.0.33%2B
 ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/libgdrapi_2.5.1-1_amd64.Ubuntu24_04.deb /opt
 ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/nixl-0.3.0-cp312-cp312-linux_x86_64.whl /opt
 ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/lmcache-0.0.0-cp312-cp312-linux_x86_64.whl /opt
+ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/torchvision-0.22.0a0%2B95f10a4e-cp312-cp312-linux_x86_64.whl /opt
 RUN cd /opt/densemax/serve && conda create -n serve python=3.12.11 -y
 SHELL ["conda", "run", "-n", "serve", "/bin/bash", "-c"]
 RUN dpkg -i /opt/libgdrapi_2.5.1-1_amd64.Ubuntu24_04.deb
 RUN sed -i '/nvidia-cudnn-frontend/d' /etc/pip/constraint.txt
 RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl \
+    && pip install /opt/torchvision-0.22.0a0+95f10a4e-cp312-cp312-linux_x86_64.whl \
     && pip install /opt/xformers-0.0.33+f2043594.d20251009-cp39-abi3-linux_x86_64.whl  \
     && pip install /opt/vllm-0.11.0rc2.dev356+ge246ad6f0.d20251010.cu129-cp38-abi3-linux_x86_64.whl  \
     && pip install "triton==3.3.1" "flashinfer-python==0.4.0" "flashinfer-cubin==0.4.0" meson \
@@ -89,6 +91,7 @@ RUN cd /opt/densemax/train && conda create -n train python=3.12.11 -y
 SHELL ["conda", "run", "-n", "train", "/bin/bash", "-c"]
 WORKDIR /opt/densemax/train
 RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.whl \
+    && pip install /opt/torchvision-0.22.0a0+95f10a4e-cp312-cp312-linux_x86_64.whl \
     && pip install aim \
     && pip install /opt/xformers-0.0.33+f2043594.d20251009-cp39-abi3-linux_x86_64.whl \
     && pip install /opt/flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl \
