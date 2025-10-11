@@ -119,6 +119,8 @@ RUN curl -o /usr/bin/lakectl https://densemax.s3.eu-central-1.amazonaws.com/lake
 
 # Cleanup
 RUN rm /opt/*.whl \
+    && rm /opt/*.deb \
+    && rm -rf /opt/ucx* \ 
     && rm -rf /opt/pytorch \
     && rm -rf /usr/local/lib/python3.12/dist-packages \
     && rm -rf /root/.cache/pip \
