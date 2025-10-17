@@ -61,13 +61,7 @@ RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.wh
     && pip uninstall -y pynvml
 
 #LMCache specifics
-RUN cd /opt \
-    && wget https://github.com/openucx/ucx/releases/download/v1.19.0/ucx-1.19.0.tar.gz \
-    && tar xzf ucx-1.19.0.tar.gz \
-    && cd ucx-1.19.0 \
-    && ./configure --enable-shared --disable-static --disable-doxygen-doc --enable-optimizations --enable-cma --enable-devel-headers --with-verbs --with-dm --enable-mt \
-    && make -j \
-    && make -j install-strip \
+RUN cp -f -r /opt/hpcx/ucx/* /usr/ \
     && ldconfig
 
 RUN git clone https://github.com/ai-dynamo/nixl \
@@ -120,7 +114,7 @@ RUN curl -o /usr/bin/lakectl https://densemax.s3.eu-central-1.amazonaws.com/lake
 # Cleanup
 RUN rm /opt/*.whl \
     && rm /opt/*.deb \
-    && rm -rf /opt/ucx* \ 
+    && rm -rf /opt/ucx* \
     && rm -rf /opt/pytorch \
     && rm -rf /usr/local/lib/python3.12/dist-packages \
     && rm -rf /root/.cache/pip \

@@ -33,24 +33,10 @@ dpkg -i libgdrapi_2.5.1-1_amd64.Ubuntu24_04.deb
 cd ..
 make install
 
-wget https://github.com/openucx/ucx/releases/download/v1.19.0/ucx-1.19.0.tar.gz
-tar xzf ucx-1.19.0.tar.gz
-cd ucx-1.19.0
-./configure                            \
-    --enable-shared                    \
-    --disable-static                   \
-    --disable-doxygen-doc              \
-    --enable-optimizations             \
-    --enable-cma                       \
-    --enable-devel-headers             \
-    --with-verbs                       \
-    --with-dm                          \
-    --enable-mt
-make -j
-make -j install-strip
+cp -f -r /opt/hpcx/ucx/* /usr/
 ldconfig
-cd /opt
 
+cd /opt
 
 git clone https://github.com/ai-dynamo/nixl
 cd nixl
