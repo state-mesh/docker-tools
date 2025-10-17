@@ -137,5 +137,9 @@ RUN chmod a+x /usr/bin/train
 COPY quant/quantize.sh /usr/bin/quantize
 RUN chmod a+x /usr/bin/quantize
 
+ENV NCCL_P2P_DISABLE=0
+ENV NCCL_IB_DISABLE=1
+ENV NCCL_DEBUG=INFO
+
 ENTRYPOINT ["/bin/bash","-c","--"]
 
