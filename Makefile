@@ -1,5 +1,5 @@
 REPO ?= ragflow
-NAME = statemesh/$(REPO)
+NAME = registry.densemax.local/statemesh/$(REPO)
 VERSION = 1.0.0
 
 .PHONY: build tag tag-latest push push-latest release
@@ -7,16 +7,16 @@ VERSION = 1.0.0
 release: build tag tag-latest push push-latest
 
 build:
-	docker build -t $(NAME):$(VERSION) --rm $(REPO)
+	buildah build --layers=true --format=docker -t $(NAME):$(VERSION) $(REPO)
 
 tag:
-	docker tag $(NAME):$(VERSION) $(NAME):$(VERSION)
+	buildah tag $(NAME):$(VERSION) $(NAME):$(VERSION)
 
 tag-latest:
-	docker tag $(NAME):$(VERSION) $(NAME):latest
+	buildah tag $(NAME):$(VERSION) $(NAME):latest
 
 push:
-	docker push $(NAME):$(VERSION)
+	buildah push --tls-verify=false push $(NAME):$(VERSION)
 
 push-latest:
-	docker push $(NAME):latest
+	buildah push --tls-verify=false push $(NAME):latest
