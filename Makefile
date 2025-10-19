@@ -7,7 +7,7 @@ VERSION = 1.0.0
 release: build tag tag-latest push push-latest
 
 build:
-	buildah build --layers=true --format=docker -t $(NAME):$(VERSION) $(REPO)
+	buildah build --layers --format=docker -t $(NAME):$(VERSION) $(REPO)
 
 tag:
 	buildah tag $(NAME):$(VERSION) $(NAME):$(VERSION)

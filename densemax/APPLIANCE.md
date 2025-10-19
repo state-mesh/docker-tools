@@ -5,7 +5,7 @@ sudo su
 
 git clone -b 580.82.09 https://github.com/NVIDIA/open-gpu-kernel-modules.git
 cd open-gpu-kernel-modules/
-sudo rmmod nvidia_drm nvidia_modeset nvidia_uvm nvidia
+sudo rmmod gdrdrv nvidia_drm nvidia_modeset nvidia_uvm nvidia
 rm /lib/modules/6.8.0-84-generic/kernel/drivers/video/nvidia*
 
 make modules -j$(nproc)
