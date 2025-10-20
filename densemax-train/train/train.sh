@@ -22,7 +22,7 @@ echo "Preprocessing dataset"
 axolotl preprocess $CONFIG
 
 echo "Training base model: ${BASE_MODEL}"
-axolotl train $CONFIG
+axolotl train $CONFIG --num-processes 1
 
 echo "Merging LoRA into the base model"
 axolotl merge-lora $CONFIG --lora-model-dir=$WORK_DIR/outputs/$BASE_MODEL
