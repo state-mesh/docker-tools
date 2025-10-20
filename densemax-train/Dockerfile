@@ -48,10 +48,6 @@ RUN chmod a+x /usr/bin/job-entry \
     && chmod a+x /usr/bin/train \
     && chmod a+x /usr/bin/quantize
 
-ENV NCCL_P2P_DISABLE=0
-ENV NCCL_IB_DISABLE=0
-ENV NCCL_SHARP_DISABLE=1
-ENV NCCL_DEBUG=INFO
 ENV TUNE_MAX_PENDING_TRIALS_PG=32
 
 ENTRYPOINT ["/bin/bash","-c","--"]

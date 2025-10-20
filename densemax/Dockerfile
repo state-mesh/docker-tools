@@ -46,7 +46,6 @@ ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/vllm-0.11.0rc2.dev
 ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/xformers-0.0.33%2Bf2043594.d20251009-cp39-abi3-linux_x86_64.whl /opt
 ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/libgdrapi_2.5.1-1_amd64.Ubuntu24_04.deb /opt
 ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/nixl-0.3.0-cp312-cp312-linux_x86_64.whl /opt
-ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/lmcache-0.0.0-cp312-cp312-linux_x86_64.whl /opt
 ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/torchvision-0.22.0a0%2B95f10a4e-cp312-cp312-linux_x86_64.whl /opt
 RUN cd /opt/densemax/serve && conda create -n serve python=3.12.11 -y
 SHELL ["conda", "run", "-n", "serve", "/bin/bash", "-c"]
@@ -60,27 +59,9 @@ RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.wh
     && pip install "flashinfer-jit-cache==0.4.0" --extra-index-url https://flashinfer.ai/whl/cu$(echo $CUDA_VERSION | cut -d. -f1,2 | tr -d '.')  \
     && pip uninstall -y pynvml
 
-#LMCache specifics
-RUN cp -f -r /opt/hpcx/ucx/* /usr/ \
-    && ldconfig
-
-RUN git clone https://github.com/ai-dynamo/nixl \
-    && cd nixl \
-    && git checkout b1c22edd8fe10e2e5221c107ee51200fce6f09a8 \
-    && mkdir build \
-    && meson setup build/ --prefix=/usr/local/nixl \
-    && cd build \
-    && ninja \
-    && ninja install \
-    && echo "/usr/local/nixl/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/nixl.conf \
-    && echo "/usr/local/nixl/lib/x86_64-linux-gnu/plugins" >> /etc/ld.so.conf.d/nixl.conf \
-    && ldconfig
-
-RUN pip install /opt/nixl-0.3.0-cp312-cp312-linux_x86_64.whl  \
-    && pip install /opt/lmcache-0.0.0-cp312-cp312-linux_x86_64.whl
-
 # Training
 ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl /opt
+ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/bitsandbytes-0.48.1-cp312-cp312-linux_x86_64.whl /opt
 RUN cd /opt/densemax/train && conda create -n train python=3.12.11 -y
 SHELL ["conda", "run", "-n", "train", "/bin/bash", "-c"]
 WORKDIR /opt/densemax/train
@@ -89,13 +70,14 @@ RUN pip install /opt/torch-2.8.0a0+5228986c39.nv25.6-cp312-cp312-linux_x86_64.wh
     && pip install aim \
     && pip install /opt/xformers-0.0.33+f2043594.d20251009-cp39-abi3-linux_x86_64.whl \
     && pip install /opt/flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl \
+    && pip install /opt/bitsandbytes-0.48.1-cp312-cp312-linux_x86_64.whl \
     && pip install "cut-cross-entropy[transformers] @ git+https://github.com/axolotl-ai-cloud/ml-cross-entropy.git@147ea28"
 
 RUN git clone --depth=1 https://github.com/invergent-ai/axolotl.git \
     && cd axolotl \
     && pip install -r requirements.txt \
     && pip install --no-build-isolation -e .[deepspeed,flash-attn,ring-flash-attn,optimizers,ray] \
-    && pip install --no-cache-dir "ray[default,serve,tune]==2.49.1"
+    && pip install --no-cache-dir "ray[default,serve,tune]==2.50.1"
 
 RUN mkdir -p /opt/densemax/eval \
     && conda create -n eval python=3.12.1 -y
@@ -137,9 +119,20 @@ RUN chmod a+x /usr/bin/train
 COPY quant/quantize.sh /usr/bin/quantize
 RUN chmod a+x /usr/bin/quantize
 
-ENV NCCL_P2P_DISABLE=0
+ENV NCCL_P2P_DISABLE=1
 ENV NCCL_IB_DISABLE=1
+ENV NCCL_SHARP_DISABLE=1
+ENV UCX_IB_GPU_DIRECT_RDMA=n
+#ENV UCX_TLS=tcp,sm,cuda,self
 ENV NCCL_DEBUG=INFO
+ENV TORCH_SHOW_CPP_STACKTRACES=1
+ENV TORCH_CPP_LOG_LEVEL=0
+ENV TORCH_LOGS=all
+ENV PYTORCH_DEBUG_MPS_ALLOCATOR=1
+ENV TORCH_NCCL_DESYNC_DEBUG=1
+ENV TORCH_NCCL_DEBUG_INFO_TEMP_FILE=/opt/work/nccl_debug_info.log
+
+# RUN sed -i '/nccl_rdma_sharp_plugin/d' /etc/ld.so.conf.d/hpcx.conf
 
 ENTRYPOINT ["/bin/bash","-c","--"]
 
