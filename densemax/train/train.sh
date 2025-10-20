@@ -21,7 +21,7 @@ echo "Downloading dataset ${DATASET}"
 lakectl fs download -r lakefs://$DATASET/ $WORK_DIR/dataset
 
 echo "Preprocessing dataset"
-axolotl preprocess $CONFIG
+uv run axolotl preprocess $CONFIG
 
 echo "Training base model: ${BASE_MODEL}"
 uv run axolotl train $CONFIG --num-processes 1
