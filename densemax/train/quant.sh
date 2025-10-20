@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python /scripts/quantization.py
+/opt/densemax/quant/.venv/bin/python /scripts/quantization.py
