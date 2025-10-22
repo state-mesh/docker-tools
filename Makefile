@@ -4,9 +4,20 @@ VERSION = 1.0.0
 
 .PHONY: build tag tag-latest push push-latest release
 
-release: build tag tag-latest push push-latest
+ensure-buildah:
+	@command -v buildah >/dev/null 2>&1 || { \
+		echo "⚙️  buildah not found. Installing..."; \
+		if command -v apt-get >/dev/null 2>&1; then \
+			sudo apt-get update && sudo apt-get install -y buildah; \
+		else \
+			echo "❌ No supported package manager found. Please install buildah manually."; \
+			exit 1; \
+		fi \
+	}
 
-build:
+release: ensure-buildah build tag tag-latest push push-latest
+
+build: ensure-buildah
 	buildah build --layers --format=docker -t $(NAME):$(VERSION) $(REPO)
 
 tag:
@@ -16,7 +27,7 @@ tag-latest:
 	buildah tag $(NAME):$(VERSION) $(NAME):latest
 
 push:
-	buildah push --tls-verify=false push $(NAME):$(VERSION)
+	buildah push --tls-verify=false $(NAME):$(VERSION)
 
 push-latest:
-	buildah push --tls-verify=false push $(NAME):latest
+	buildah push --tls-verify=false $(NAME):latest
