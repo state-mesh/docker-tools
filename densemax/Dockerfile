@@ -78,6 +78,8 @@ RUN chmod a+x /usr/bin/job-entry \
     && chmod a+x /usr/bin/train \
     && chmod a+x /usr/bin/quantize
 
+#https://github.com/NVIDIA/nccl/issues/1838
+ENV NCCL_CUMEM_HOST_ENABLE=0
 ENV TUNE_MAX_PENDING_TRIALS_PG=32
 ENV RAY_RUNTIME_ENV_HOOK=ray._private.runtime_env.uv_runtime_env_hook.hook
 
