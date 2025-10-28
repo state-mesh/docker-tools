@@ -28,9 +28,8 @@ RUN uv pip install "torch==2.8.0+cu129" "torchvision==0.23.0+cu129" --index-url 
 ## Serving
 WORKDIR /opt/densemax/serve
 RUN uv venv --python 3.12
-ENV VLLM_COMMIT=9fce7bee745230d61c60ad467966790553b0ba48
 RUN uv pip install "torch==2.8.0+cu129" "torchvision==0.23.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
-    && uv pip install -U vllm --torch-backend=auto --extra-index-url https://wheels.vllm.ai/nightly
+    && uv pip install -U vllm --torch-backend=auto --extra-index-url https://wheels.vllm.ai/latest
 
 ## Training
 WORKDIR /opt/densemax/train
@@ -63,6 +62,7 @@ RUN rm -f /opt/*.whl \
     && rm -rf /root/.cache/pip \
     && apt-get clean
 
+RUN apt install iproute2 -y
 ## Custom scripts (keep this section at the end for easy image updates)
 RUN mkdir /scripts
 
