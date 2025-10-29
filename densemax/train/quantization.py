@@ -4,8 +4,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from llmcompressor.modifiers.awq import AWQModifier
 from llmcompressor import oneshot
 
-model_dir = os.path.expandvars("$WORK_DIR/outputs/$BASE_MODEL/merged")
-out_dir = os.path.expandvars("$WORK_DIR/outputs/$BASE_MODEL/quantized")
+model_dir = os.path.expandvars("$WORK_DIR/outputs/merged")
+out_dir = os.path.expandvars("$WORK_DIR/outputs/quantized")
 ds_dir = os.path.expandvars("$WORK_DIR/dataset")
 
 model = AutoModelForCausalLM.from_pretrained(

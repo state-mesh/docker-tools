@@ -83,4 +83,11 @@ ENV NCCL_CUMEM_HOST_ENABLE=0
 ENV TUNE_MAX_PENDING_TRIALS_PG=32
 ENV RAY_RUNTIME_ENV_HOOK=ray._private.runtime_env.uv_runtime_env_hook.hook
 
-ENTRYPOINT ["/bin/bash","-c","--"]
+# ------------------------------------------------------------
+# vLLM fastAPI controller for external model testing
+# ------------------------------------------------------------
+COPY chat/vllm-controller.py /opt/densemax/serve/vllm-controller.py
+EXPOSE 9000
+
+ENTRYPOINT ["/bin/bash","-c"]
+

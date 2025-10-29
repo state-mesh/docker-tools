@@ -33,31 +33,30 @@ lakectl branch create lakefs://$SOURCE_REPO/$BRANCH -s lakefs://$BASE_MODEL
 
 if [[ "$LORA_ADAPTER" == "true" ]]; then
   echo "Uploading LoRA adapter"
-  lakectl fs upload -rs $WORK_DIR/outputs/$BASE_MODEL/lora/ lakefs://$SOURCE_REPO/$BRANCH/
+  lakectl fs upload -rs $WORK_DIR/outputs/lora/ lakefs://$SOURCE_REPO/$BRANCH/
 else
   echo "Merging LoRA into the base model"
-  uv run axolotl merge-lora $CONFIG --lora-model-dir=$WORK_DIR/outputs/$BASE_MODEL/lora/ \
-            --output-dir=$WORK_DIR/outputs/$BASE_MODEL/merged/
+  uv run axolotl merge-lora $CONFIG --lora-model-dir=$WORK_DIR/outputs/lora/ \
+            --output-dir=$WORK_DIR/outputs/merged/
 
   if [[ "$QUANTIZE" == "true" ]]; then
     if [[ "${TORCHAO}" == "true" ]]; then
       echo "Running quantization using Axolotl torchAO (Inference not working on Ampere GPU)"
-      uv run axolotl quantize $CONFIG --base-model=$WORK_DIR/outputs/$BASE_MODEL/merged/
+      uv run axolotl quantize $CONFIG --base-model=$WORK_DIR/outputs/merged/
     else
       echo "Running quantization using LLMCompressor"
       exec stdbuf -oL -eL quant
     fi
 
     echo "Uploading quantized model"
-    lakectl fs upload -rs $WORK_DIR/outputs/$BASE_MODEL/quantized/ lakefs://$SOURCE_REPO/$BRANCH/
+    lakectl fs upload -rs $WORK_DIR/outputs/quantized/ lakefs://$SOURCE_REPO/$BRANCH/
   else
     echo "Uploading merged model"
-    lakectl fs upload -rs $WORK_DIR/outputs/$BASE_MODEL/merged/ lakefs://$SOURCE_REPO/$BRANCH/
+    lakectl fs upload -rs $WORK_DIR/outputs/merged/ lakefs://$SOURCE_REPO/$BRANCH/
   fi
 fi
 
 echo "Commiting lakefs branch"
 lakectl commit lakefs://$SOURCE_REPO/$BRANCH --message "Fine-tuning of $BASE_MODEL" --meta lora_adapter="$LORA_ADAPTER" --meta quantized="$QUANTIZE"
-
 
 
