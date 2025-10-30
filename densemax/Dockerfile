@@ -1,9 +1,11 @@
 FROM nvcr.io/nvidia/pytorch:25.06-py3
 
-ENV CONDA_DIR=/opt/miniforge
-ENV PATH=$CONDA_DIR/bin:$PATH
+ENV UV_HTTP_TIMEOUT=500
+ENV UV_INDEX_STRATEGY="unsafe-best-match"
+ENV UV_LINK_MODE=copy
+ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y gettext pybind11-dev cmake libwebp-dev curl unzip \
+RUN apt-get update && apt-get install -y gettext pybind11-dev cmake libwebp-dev curl unzip fuse3 \
     && pip uninstall -y torch torchvision torchaudio distributed-ucxx pylibcudf cudf cupy-cuda12x numba thinc pyarrow numpy dask-cuda cuml cugraph-service-server nx-cugraph distributed-ucx pylibcugraph cugraph kvikio dask-cudf librosa spacy onnx tensorboard \
     && mkdir -p /opt/densemax/{quant,train,serve,eval} \
     && curl -LsSf https://astral.sh/uv/install.sh | sh \
@@ -22,22 +24,32 @@ RUN curl -o /usr/bin/lakectl https://densemax.s3.eu-central-1.amazonaws.com/lake
 # Quantization
 WORKDIR /opt/densemax/quant
 RUN uv venv --python 3.12
-RUN uv pip install "torch==2.8.0+cu129" "torchvision==0.23.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
+RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
+    uv pip install "torch==2.8.0+cu129" "torchvision==0.23.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
     && uv pip install "llmcompressor==0.8.1"
 
 ## Serving
 WORKDIR /opt/densemax/serve
 RUN uv venv --python 3.12
-RUN uv pip install "torch==2.8.0+cu129" "torchvision==0.23.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
-    && uv pip install -U vllm --torch-backend=auto --extra-index-url https://wheels.vllm.ai/latest
+RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
+    uv pip install "torch==2.9.0+cu129" "torchvision==0.24.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
+    && uv pip install -U "apache-tvm-ffi==0.1.0b15" vllm --torch-backend=auto --extra-index-url https://wheels.vllm.ai/nightly \
+    && uv pip install lmcache "nixl >= 0.6.0"
+RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
+    git clone --depth=1 https://github.com/vllm-project/production-stack.git \
+    && cd production-stack \
+    && uv pip install -U setuptools_scm \
+    && uv pip install -e .[semantic_cache,lmcache]
 
 ## Training
 WORKDIR /opt/densemax/train
-RUN uv venv --python 3.12 \
-    && uv pip install "torch==2.8.0+cu129" "torchvision==0.23.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
+RUN uv venv --python 3.12
+RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
+    uv pip install "torch==2.8.0+cu129" "torchvision==0.23.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
     && uv pip install wheel aim "cut-cross-entropy[transformers] @ git+https://github.com/axolotl-ai-cloud/ml-cross-entropy.git@147ea28"
 
-RUN git clone --depth=1 https://github.com/invergent-ai/axolotl.git \
+RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
+    git clone --depth=1 https://github.com/invergent-ai/axolotl.git \
     && cd axolotl \
     && uv pip install -r requirements.txt \
     && uv pip install --no-build-isolation -e .[deepspeed,flash-attn,ring-flash-attn,optimizers,ray] \
@@ -51,7 +63,8 @@ RUN uv pip uninstall bitsandbytes \
 ## Evaluation
 WORKDIR /opt/densemax/eval
 RUN uv venv --python 3.12
-RUN uv pip install -U deepeval deepteam
+RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
+    uv pip install -U deepeval deepteam
 
 ## Base env
 RUN cd /opt/densemax && pip install --no-cache-dir "ray[default,serve]==2.50.1"
@@ -82,6 +95,13 @@ RUN chmod a+x /usr/bin/job-entry \
 ENV NCCL_CUMEM_HOST_ENABLE=0
 ENV TUNE_MAX_PENDING_TRIALS_PG=32
 ENV RAY_RUNTIME_ENV_HOOK=ray._private.runtime_env.uv_runtime_env_hook.hook
+
+ENV RCLONE_CONFIG_LAKEFS_TYPE=s3
+ENV RCLONE_CONFIG_LAKEFS_PROVIDER=Other
+ENV RCLONE_CONFIG_LAKEFS_ENV_AUTH=false
+ENV RCLONE_CONFIG_NO_CHECK_BUCKET=true
+ENV RCLONE_NO_CHECK_CERTIFICATE=true
+ENV RCLONE_CONFIG_LAKEFS_ENDPOINT=http://lakefs-s3.statemesh.svc
 
 # ------------------------------------------------------------
 # vLLM fastAPI controller for external model testing
