@@ -1,7 +1,6 @@
-import subprocess, threading, requests, os, signal, time
+import subprocess, threading, requests, os, signal, time, sys
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
-import sys
 
 app = FastAPI(title="vLLM Proxy Controller")
 
@@ -33,20 +32,30 @@ def start_vllm():
         "--host", "0.0.0.0"
     ]
 
-    # Launch in background thread
     def run_vllm():
         global VLLM_PROC
         VLLM_PROC = subprocess.Popen(
             cmd,
-            stdout=sys.stdout,
-            stderr=sys.stderr,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
         )
+
+        for line in VLLM_PROC.stdout:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+            if "Application startup complete" in line:
+                server_ready_event.set()
+
         VLLM_PROC.wait()
 
+    server_ready_event = threading.Event()
     threading.Thread(target=run_vllm, daemon=True).start()
 
-    # Wait briefly to let server start
-    time.sleep(10)
+    # Wait until we see the ready message (timeout for safety)
+    if not server_ready_event.wait(timeout=120):
+        raise TimeoutError("vLLM failed to start within 120 seconds")
     return {"status": "started", "cmd": " ".join(cmd)}
 
 
