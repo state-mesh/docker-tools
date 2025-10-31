@@ -29,12 +29,15 @@ RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
     && uv pip install "llmcompressor==0.8.1"
 
 ## Serving
+ENV VLLM_COMMIT=b2e65cb4a7ea7c000517a7b78a6e0ccd9ecb0517
 WORKDIR /opt/densemax/serve
 RUN uv venv --python 3.12
 RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
-    uv pip install "torch==2.9.0+cu129" "torchvision==0.24.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
-    && uv pip install -U "apache-tvm-ffi==0.1.0b15" vllm --torch-backend=auto --extra-index-url https://wheels.vllm.ai/nightly \
+    uv pip install "torch==2.8.0+cu129" "torchaudio==2.8.0+cu129" "torchvision==0.23.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
+    && uv pip install vllm --torch-backend=auto --extra-index-url https://wheels.vllm.ai/${VLLM_COMMIT} \
+    && uv pip install -U "apache-tvm-ffi==0.1.0b15" \
     && uv pip install lmcache "nixl >= 0.6.0"
+
 RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
     git clone --depth=1 https://github.com/vllm-project/production-stack.git \
     && cd production-stack \
@@ -73,6 +76,7 @@ RUN rm -f /opt/*.whl \
     && rm -f /opt/*.deb \
     && rm -rf /opt/pytorch \
     && rm -rf /root/.cache/pip \
+    && rm -rf /opt/densemax/serve/production-stack \
     && apt-get clean
 
 RUN apt install iproute2 -y
