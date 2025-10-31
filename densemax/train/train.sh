@@ -10,7 +10,6 @@ SOURCE_REPO="${BASE_MODEL%%/*}"
 [[ "${MERGE_LORA:-false}" != "true" ]] && LORA_ADAPTER=true || LORA_ADAPTER=false
 
 echo "Downloading model ${BASE_MODEL}"
-rm -rf $WORK_DIR/model/*
 lakectl fs download -r lakefs://$BASE_MODEL/ $WORK_DIR/model
 
 echo "Preparing config file"
@@ -57,6 +56,8 @@ else
 fi
 
 echo "Commiting lakefs branch"
-lakectl commit lakefs://$SOURCE_REPO/$BRANCH --message "Fine-tuning of $BASE_MODEL" --meta lora_adapter="$LORA_ADAPTER" --meta quantized="$QUANTIZE"
+lakectl commit lakefs://$SOURCE_REPO/$BRANCH --message "Fine-tuning of $BASE_MODEL" \
+--meta lora_adapter="$LORA_ADAPTER" --meta quantized="$QUANTIZE" --meta source_model="$BASE_MODEL"
 
+# No need for cleanup before or after because each RayJob has a PVC that follows job's lifecycle
 
