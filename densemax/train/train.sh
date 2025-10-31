@@ -13,7 +13,8 @@ echo "Downloading model ${BASE_MODEL}"
 lakectl fs download -r lakefs://$BASE_MODEL/ $WORK_DIR/model
 
 echo "Preparing config file"
-uv run envsubst < $WORK_DIR/axolotl.yaml > $CONFIG
+#uv run envsubst < $WORK_DIR/axolotl.yaml > $CONFIG # Deprecated ConfigMap
+echo "$AXOLOTL_CONFIG" > $CONFIG
 
 echo "DeepSpeed is enabled. Fetching configs"
 uv run axolotl fetch deepspeed_configs
