@@ -23,7 +23,7 @@ def start_vllm():
         "python", "-m", "vllm.entrypoints.openai.api_server",
         "--dtype", "half",
         "--max-model-len", "8000",
-        "-tp", "4",
+        "-tp", "2",
         "--enforce-eager",
         "--model", MODEL_PATH,
         "--enable-lora",
