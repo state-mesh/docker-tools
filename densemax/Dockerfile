@@ -35,8 +35,7 @@ RUN uv venv --python 3.12
 RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
     uv pip install "torch==2.8.0+cu129" "torchaudio==2.8.0+cu129" "torchvision==0.23.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
     && uv pip install vllm --torch-backend=auto --extra-index-url https://wheels.vllm.ai/${VLLM_COMMIT} \
-    && uv pip install -U "apache-tvm-ffi==0.1.0b15" \
-    && uv pip install --no-cache-dir "ray[default,serve,tune]==2.50.1" \
+    && uv pip install --no-cache-dir "ray[default,serve]==2.50.1" \
     && uv pip install lmcache "nixl >= 0.6.0"
 
 RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
