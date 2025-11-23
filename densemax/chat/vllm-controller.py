@@ -10,6 +10,7 @@ LORA_PATH = "/opt/work/outputs/lora"
 VLLM_PORT = 8000
 VLLM_URL = f"http://127.0.0.1:{VLLM_PORT}"
 VLLM_PROC = None
+VLLM_TP = os.getenv("VLLM_TP", "2")
 
 # --- Start endpoint ---
 @app.post("/start")
@@ -23,11 +24,10 @@ def start_vllm():
         "python", "-m", "vllm.entrypoints.openai.api_server",
         "--dtype", "half",
         "--max-model-len", "8000",
-        "-tp", "2",
-        "--enforce-eager",
+        "-tp", VLLM_TP,
         "--model", MODEL_PATH,
         "--enable-lora",
-        f"--lora-modules", f"sql-lora={LORA_PATH}",
+        f"--lora-modules", f"test-lora={LORA_PATH}",
         "--port", str(VLLM_PORT),
         "--host", "0.0.0.0"
     ]
@@ -54,8 +54,8 @@ def start_vllm():
     threading.Thread(target=run_vllm, daemon=True).start()
 
     # Wait until we see the ready message (timeout for safety)
-    if not server_ready_event.wait(timeout=120):
-        raise TimeoutError("vLLM failed to start within 120 seconds")
+    if not server_ready_event.wait(timeout=600):
+        raise TimeoutError("vLLM failed to start within 600 seconds")
     return {"status": "started", "cmd": " ".join(cmd)}
 
 
