@@ -27,6 +27,7 @@ def start_vllm():
         "-tp", VLLM_TP,
         "--model", MODEL_PATH,
         "--enable-lora",
+        "--max-lora-rank", "64",
         f"--lora-modules", f"test-lora={LORA_PATH}",
         "--port", str(VLLM_PORT),
         "--host", "0.0.0.0"
