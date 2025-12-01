@@ -7,10 +7,14 @@ app = FastAPI(title="vLLM Proxy Controller")
 # --- Configuration ---
 MODEL_PATH = "/opt/work/model"
 LORA_PATH = "/opt/work/outputs/lora"
+MERGED_PATH = "/opt/work/outputs/merged"
+QUANTIZED_PATH = "/opt/work/outputs/quantized"
 VLLM_PORT = 8000
 VLLM_URL = f"http://127.0.0.1:{VLLM_PORT}"
 VLLM_PROC = None
-VLLM_TP = os.getenv("VLLM_TP", "2")
+VLLM_TP = os.getenv("VLLM_TP", "1")
+MERGED = os.getenv("MERGE_LORA", "false")
+QUANTIZED = os.getenv("QUANTIZE", "false")
 
 # --- Start endpoint ---
 @app.post("/start")
@@ -23,15 +27,31 @@ def start_vllm():
     cmd = [
         "python", "-m", "vllm.entrypoints.openai.api_server",
         "--dtype", "half",
-        "--max-model-len", "8000",
+        "--max-model-len", "8192",
         "-tp", VLLM_TP,
-        "--model", MODEL_PATH,
-        "--enable-lora",
-        "--max-lora-rank", "64",
-        f"--lora-modules", f"test-lora={LORA_PATH}",
         "--port", str(VLLM_PORT),
         "--host", "0.0.0.0"
     ]
+
+    if MERGED.lower() == "true":
+        if QUANTIZED.lower() == "true":
+            cmd += [
+                "--model", QUANTIZED_PATH
+            ]
+            print(f"Serving quantized model from path {QUANTIZED_PATH}")
+        else:
+            cmd += [
+                "--model", MERGED_PATH
+            ]
+            print(f"Serving merged model from path {MERGED_PATH}")
+    else:
+        cmd += [
+            "--model", MODEL_PATH,
+            "--enable-lora",
+            "--max-lora-rank", "64",
+            f"--lora-modules", f"test-lora={LORA_PATH}"
+        ]
+        print(f"Serving lora adapter from path {LORA_PATH} on base model from path {MODEL_PATH}")
 
     def run_vllm():
         global VLLM_PROC

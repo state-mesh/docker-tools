@@ -37,7 +37,7 @@ if [[ "$LORA_ADAPTER" == "true" ]]; then
 else
   echo "Merging LoRA into the base model"
   uv run axolotl merge-lora $CONFIG --lora-model-dir=$WORK_DIR/outputs/lora/ \
-            --output-dir=$WORK_DIR/outputs/merged/
+            --output-dir=$WORK_DIR/outputs/
 
   if [[ "$QUANTIZE" == "true" ]]; then
     if [[ "${TORCHAO}" == "true" ]]; then
