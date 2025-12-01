@@ -48,7 +48,7 @@ def start_vllm():
         cmd += [
             "--model", MODEL_PATH,
             "--enable-lora",
-            "--max-lora-rank", "64",
+            "--max-lora-rank", "256",
             f"--lora-modules", f"test-lora={LORA_PATH}"
         ]
         print(f"Serving lora adapter from path {LORA_PATH} on base model from path {MODEL_PATH}")
