@@ -70,10 +70,9 @@ RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
     uv pip install -U deepeval deepteam
 
 # Add surogate-eval
-ARG GITHUB_TOKEN
 ARG SUROGATE_CACHE_BUST=3
 RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
-    uv pip install "git+https://${GITHUB_TOKEN}@github.com/invergent-ai/surogate_eval.git@main#egg=surogate-eval[security,vision,rag]"
+    uv pip install "git+https://github.com/invergent-ai/surogate_eval.git@main#egg=surogate-eval[security,vision,rag]"
 
 
 ## Base env
