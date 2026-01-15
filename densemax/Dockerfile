@@ -83,15 +83,12 @@ RUN apt install iproute2 -y
 ## Custom scripts (keep this section at the end for easy image updates)
 RUN mkdir /scripts
 
-COPY train/quantization.py /scripts
-COPY quant/quantize.py /scripts
 COPY job-entry.sh /usr/bin/job-entry
-COPY train/quant.sh /usr/bin/quant
 COPY train/train.sh /usr/bin/train
+COPY quant/quantization.py /scripts
 COPY quant/quantize.sh /usr/bin/quantize
 
 RUN chmod a+x /usr/bin/job-entry \
-    && chmod a+x /usr/bin/quant \
     && chmod a+x /usr/bin/train \
     && chmod a+x /usr/bin/quantize
 
