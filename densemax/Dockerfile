@@ -69,6 +69,13 @@ RUN uv venv --python 3.12
 RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
     uv pip install -U deepeval deepteam
 
+# Add surogate-eval
+ARG GITHUB_TOKEN
+ARG SUROGATE_CACHE_BUST=3
+RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
+    uv pip install "git+https://${GITHUB_TOKEN}@github.com/invergent-ai/surogate_eval.git@main#egg=surogate-eval[security,vision,rag]"
+
+
 ## Base env
 RUN cd /opt/densemax && pip install --no-cache-dir "ray[default,serve]==2.50.1"
 
@@ -87,10 +94,13 @@ COPY job-entry.sh /usr/bin/job-entry
 COPY train/train.sh /usr/bin/train
 COPY quant/quantization.py /scripts
 COPY quant/quantize.sh /usr/bin/quantize
+COPY eval/eval.sh /usr/bin/eval
+
 
 RUN chmod a+x /usr/bin/job-entry \
     && chmod a+x /usr/bin/train \
-    && chmod a+x /usr/bin/quantize
+    && chmod a+x /usr/bin/quantize \
+    && chmod a+x /usr/bin/eval
 
 #https://github.com/NVIDIA/nccl/issues/1838
 ENV NCCL_CUMEM_HOST_ENABLE=0
