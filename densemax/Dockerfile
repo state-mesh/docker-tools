@@ -66,11 +66,13 @@ RUN uv pip uninstall bitsandbytes \
 ## Evaluation
 WORKDIR /opt/densemax/eval
 RUN uv venv --python 3.12
-RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
-    uv pip install -U deepeval deepteam
+
+# Install Docker CLI for sandbox code execution
+RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz | \
+    tar xz -C /usr/local/bin --strip-components=1 docker/docker
 
 # Add surogate-eval
-ARG SUROGATE_CACHE_BUST=3
+ARG SUROGATE_CACHE_BUST=5
 RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
     uv pip install "git+https://github.com/invergent-ai/surogate_eval.git@main#egg=surogate-eval[security,vision,rag]"
 
@@ -93,7 +95,8 @@ COPY job-entry.sh /usr/bin/job-entry
 COPY train/train.sh /usr/bin/train
 COPY quant/quantization.py /scripts
 COPY quant/quantize.sh /usr/bin/quantize
-COPY eval/eval.sh /usr/bin/eval
+COPY eval/run_eval.sh /usr/bin/eval
+COPY eval/generate_config.py /opt/densemax/eval/generate_config.py
 
 
 RUN chmod a+x /usr/bin/job-entry \
