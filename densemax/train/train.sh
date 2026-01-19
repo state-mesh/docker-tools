@@ -36,9 +36,9 @@ if [[ "$LORA_ADAPTER" == "true" ]]; then
   echo "Uploading LoRA adapter"
   lakectl fs upload -rs $WORK_DIR/outputs/lora/ lakefs://$SOURCE_REPO/$BRANCH/
 else
-#  echo "Merging LoRA into the base model"
-#  uv run axolotl merge-lora $CONFIG --lora-model-dir=$WORK_DIR/outputs/lora/ \
-#            --output-dir=$WORK_DIR/outputs/
+  echo "Merging LoRA into the base model"
+  uv run axolotl merge-lora $CONFIG --lora-model-dir=$WORK_DIR/outputs/merged/ \
+            --output-dir=$WORK_DIR/outputs/
   echo "Uploading merged model"
   lakectl fs upload -rs $WORK_DIR/outputs/merged/ lakefs://$SOURCE_REPO/$BRANCH/
 fi
