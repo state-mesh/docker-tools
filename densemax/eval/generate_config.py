@@ -87,7 +87,7 @@ def generate_config(config_path):
     main_target = {
         'name': 'model-under-test',
         'type': 'llm',
-        'provider': 'openai',  # vLLM uses OpenAI-compatible API
+        'provider': 'openai',
         'model': deployed_model_name,
         'base_url': model_endpoint,
         'api_key': 'sk-no-key-required',
@@ -98,6 +98,7 @@ def generate_config(config_path):
         'evaluations': [],
     }
 
+    # Parse custom eval datasets
     try:
         custom_eval_datasets = json.loads(custom_eval_datasets_json)
         for d in custom_eval_datasets:
@@ -109,7 +110,6 @@ def generate_config(config_path):
                 continue
 
             dataset_path = f"lakefs://{repo_id}/{ref}"
-
             columns = d.get('columns', {})
 
             benchmark_config = {
@@ -123,17 +123,10 @@ def generate_config(config_path):
             }
 
             # Optional columns
-            if columns.get('system_prompt'):
-                benchmark_config['columns']['system_prompt'] = columns['system_prompt']
             if columns.get('eval_type'):
                 benchmark_config['columns']['eval_type'] = columns['eval_type']
             if columns.get('judge_criteria'):
                 benchmark_config['columns']['judge_criteria'] = columns['judge_criteria']
-
-            # MCQ options
-            if d.get('choicesColumns'):
-                benchmark_config['choices_columns'] = d['choicesColumns']
-                benchmark_config['choices_labels'] = d.get('choicesLabels', ['A', 'B', 'C', 'D'])
 
             # Prompt template
             if d.get('promptTemplate'):
@@ -168,6 +161,7 @@ def generate_config(config_path):
         benchmarks = json.loads(benchmarks_json)
         if benchmarks:
             benchmark_list = []
+
             for b in benchmarks:
                 benchmark_name = b.get('evalScopeName') or b.get('name', '').lower().replace(' ', '_').replace('-', '_')
                 supports_fewshot = b.get('supportsFewshot', True)
@@ -193,6 +187,18 @@ def generate_config(config_path):
                     benchmark['backend_params'] = {
                         'max_workers': max_workers,
                     }
+
+                # Handle custom dataset for standard benchmarks
+                use_custom_dataset = b.get('useCustomDataset', False)
+                if use_custom_dataset:
+                    dataset_repo = b.get('datasetRepo')
+                    dataset_ref = b.get('datasetRef', 'main')
+
+                    if dataset_repo:
+                        dataset_path = f"lakefs://{dataset_repo}/{dataset_ref}"
+                        benchmark['path'] = dataset_path
+                        benchmark['dataset_hub'] = 'local'
+                        print(f"Using custom dataset for {benchmark_name}: {dataset_path}")
 
                 benchmark_list.append(benchmark)
 
@@ -335,18 +341,13 @@ def generate_config(config_path):
                 if purpose:
                     red_teaming['purpose'] = purpose
 
-                # Simulator model - use target reference if we have a target, otherwise string
                 if simulator_model and (simulator_model != judge_model or simulator_model_base_url != judge_model_base_url):
-                    # Separate simulator target exists
                     red_teaming['simulator_model'] = {'target': 'simulator-model'}
                 elif judge_model:
-                    # Use judge as simulator
                     red_teaming['simulator_model'] = {'target': 'judge-model'}
                 else:
-                    # Fallback to string (OpenAI default)
                     red_teaming['simulator_model'] = 'gpt-3.5-turbo'
 
-                # Evaluation model - use target reference
                 if judge_model:
                     red_teaming['evaluation_model'] = {'target': 'judge-model'}
                 else:

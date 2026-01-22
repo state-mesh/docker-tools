@@ -72,7 +72,7 @@ RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.
     tar xz -C /usr/local/bin --strip-components=1 docker/docker
 
 # Add surogate-eval
-ARG SUROGATE_CACHE_BUST=26
+ARG SUROGATE_CACHE_BUST=36
 RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
     uv pip install "git+https://github.com/invergent-ai/surogate_eval.git@main#egg=surogate-eval[security,vision,rag]"
 
