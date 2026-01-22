@@ -141,6 +141,8 @@ if [[ -d "eval_results" ]]; then
                     new_filename="eval_${EVAL_JOB_ID}.json"
                 elif [[ "$filename" == report_*.md ]]; then
                     new_filename="report_${EVAL_JOB_ID}.md"
+                elif [[ "$filename" == report_*.pdf ]]; then
+                    new_filename="report_${EVAL_JOB_ID}.pdf"
                 else
                     new_filename="$filename"
                 fi

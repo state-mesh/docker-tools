@@ -193,12 +193,14 @@ def generate_config(config_path):
                 if use_custom_dataset:
                     dataset_repo = b.get('datasetRepo')
                     dataset_ref = b.get('datasetRef', 'main')
+                    dataset_subset = b.get('datasetSubset', 'default')
 
                     if dataset_repo:
                         dataset_path = f"lakefs://{dataset_repo}/{dataset_ref}"
                         benchmark['path'] = dataset_path
                         benchmark['dataset_hub'] = 'local'
-                        print(f"Using custom dataset for {benchmark_name}: {dataset_path}")
+                        benchmark['subset'] = dataset_subset  # NEW
+                        print(f"Using custom dataset for {benchmark_name}: {dataset_path} (subset: {dataset_subset})")
 
                 benchmark_list.append(benchmark)
 
