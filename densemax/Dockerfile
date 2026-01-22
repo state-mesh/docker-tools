@@ -1,67 +1,48 @@
-FROM nvcr.io/nvidia/pytorch:25.06-py3
+FROM nvidia/cuda:12.9.1-cudnn-runtime-ubuntu24.04
 
 ENV UV_HTTP_TIMEOUT=500
 ENV UV_INDEX_STRATEGY="unsafe-best-match"
-ENV UV_LINK_MODE=copy
+ENV UV_LINK_MODE=symlink
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y gettext pybind11-dev cmake libwebp-dev curl unzip fuse3 \
-    && pip uninstall -y torch torchvision torchaudio distributed-ucxx pylibcudf cudf cupy-cuda12x numba thinc pyarrow numpy dask-cuda cuml cugraph-service-server nx-cugraph distributed-ucx pylibcugraph cugraph kvikio dask-cudf librosa spacy onnx tensorboard \
-    && mkdir -p /opt/densemax/{quant,train,serve,eval} \
+RUN apt-get update && apt-get install -y gettext pybind11-dev cmake libwebp-dev curl unzip fuse3 git python3 pipx \
     && curl -LsSf https://astral.sh/uv/install.sh | sh \
     && mv ~/.local/bin/uv /usr/local/bin/ \
     && mv ~/.local/bin/uvx /usr/local/bin/
 
 RUN curl https://rclone.org/install.sh | bash
 
-COPY common/* /opt/nvidia/entrypoint.d
-RUN sed -i '/torch==/d' /etc/pip/constraint.txt
-RUN sed -i '/torchvision==/d' /etc/pip/constraint.txt
-
 RUN curl -o /usr/bin/lakectl https://densemax.s3.eu-central-1.amazonaws.com/lakectl \
     && chmod +x /usr/bin/lakectl
 
 # Quantization
+RUN mkdir -p /opt/densemax/quant
 WORKDIR /opt/densemax/quant
 RUN uv venv --python 3.12
-RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
-    uv pip install "torch==2.8.0+cu129" "torchvision==0.23.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
+RUN uv pip install "torch==2.9.0+cu129" "torchvision==0.24.0+cu129" "torchaudio==2.9.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
     && uv pip install "llmcompressor==0.8.1"
 
 ## Serving
 ENV VLLM_COMMIT=b2e65cb4a7ea7c000517a7b78a6e0ccd9ecb0517
 WORKDIR /opt/densemax/serve
 RUN uv venv --python 3.12
-RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
-    uv pip install "torch==2.8.0+cu129" "torchaudio==2.8.0+cu129" "torchvision==0.23.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
-    && uv pip install vllm --torch-backend=auto --extra-index-url https://wheels.vllm.ai/${VLLM_COMMIT} \
-    && uv pip install --no-cache-dir "ray[default,serve]==2.50.1" \
+RUN uv pip install "torch==2.9.0+cu129" "torchvision==0.24.0+cu129" "torchaudio==2.9.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
+    && uv pip install vllm --torch-backend=auto \
+    && uv pip install "ray[default,serve]==2.50.1" \
     && uv pip install lmcache "nixl >= 0.6.0"
 
-RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
-    git clone --depth=1 https://github.com/vllm-project/production-stack.git \
+RUN git clone --depth=1 https://github.com/vllm-project/production-stack.git \
     && cd production-stack \
     && uv pip install -U setuptools_scm \
-    && uv pip install -e .[semantic_cache,lmcache]
+    && uv pip install -e .[semantic_cache] \
+    && uv pip install lmcache==0.3.11
 
 ## Training
 WORKDIR /opt/densemax/train
 RUN uv venv --python 3.12
-RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
-    uv pip install "torch==2.8.0+cu129" "torchvision==0.23.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
-    && uv pip install wheel aim "cut-cross-entropy[transformers] @ git+https://github.com/axolotl-ai-cloud/ml-cross-entropy.git@147ea28"
-
-RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
-    git clone --depth=1 https://github.com/invergent-ai/axolotl.git \
-    && cd axolotl \
-    && uv pip install -r requirements.txt \
-    && uv pip install --no-build-isolation -e .[deepspeed,flash-attn,ring-flash-attn,optimizers,ray] \
-    && uv pip install --no-cache-dir "ray[default,serve,tune]==2.50.1" \
-    && uv pip install envsubst
-
-ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/bitsandbytes-0.48.1%2Binvergent-cp312-cp312-linux_x86_64.whl /opt/
-RUN uv pip uninstall bitsandbytes \
-    && uv pip install /opt/bitsandbytes-0.48.1+invergent-cp312-cp312-linux_x86_64.whl
+RUN uv pip install wandb aim \
+    && uv pip install "torch==2.9.0+cu129" "torchvision==0.24.0+cu129" "torchaudio==2.9.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
+    && uv pip install https://github.com/invergent-ai/surogate/releases/download/v0.0.6/surogate-0.0.6+cu129-cp312-abi3-manylinux_2_39_x86_64.whl
 
 ## Evaluation
 WORKDIR /opt/densemax/eval
@@ -73,17 +54,15 @@ RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.
 
 # Add surogate-eval
 ARG SUROGATE_CACHE_BUST=36
-RUN --mount=type=bind,rw,src=.cache,dst=/root/.cache/uv \
-    uv pip install "git+https://github.com/invergent-ai/surogate_eval.git@main#egg=surogate-eval[security,vision,rag]"
+RUN uv pip install "torch==2.9.0+cu129" "torchvision==0.24.0+cu129" "torchaudio==2.9.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
+    && uv pip install "git+https://github.com/invergent-ai/surogate_eval.git@main#egg=surogate-eval[security,vision,rag]"
 
 
 ## Base env
-RUN cd /opt/densemax && pip install --no-cache-dir "ray[default,serve]==2.50.1"
+RUN cd /opt/densemax && pipx install "ray[default,serve]==2.50.1" && pipx ensurepath
 
 RUN rm -f /opt/*.whl \
     && rm -f /opt/*.deb \
-    && rm -rf /opt/pytorch \
-    && rm -rf /root/.cache/pip \
     && rm -rf /opt/densemax/serve/production-stack \
     && apt-get clean
 
