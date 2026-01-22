@@ -5,7 +5,7 @@ set -e
 cd /opt/densemax/train
 
 export PYTHONUNBUFFERED=1
-CONFIG=$WORK_DIR/axolotl_solved.yaml
+CONFIG=$WORK_DIR/config_solved.yaml
 SOURCE_REPO="${BASE_MODEL%%/*}"
 IFS=',' read -ra DATASETS <<< "$DATASET"
 [[ "${MERGE_LORA:-false}" != "true" ]] && LORA_ADAPTER=true || LORA_ADAPTER=false
@@ -27,7 +27,7 @@ for ds in "${DATASETS[@]}"; do
 done
 
 echo "Training base model: ${BASE_MODEL}"
-uv run axolotl train $CONFIG --num-processes 1
+uv run surogate sft $CONFIG
 
 echo "Preparing lakefs branch"
 lakectl branch create lakefs://$SOURCE_REPO/$BRANCH -s lakefs://$BASE_MODEL
