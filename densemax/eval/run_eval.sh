@@ -4,7 +4,7 @@ set -euo pipefail
 cd /opt/densemax/eval
 source /opt/densemax/eval/.venv/bin/activate
 
-# Job identification - passed from Tekton
+# Job identification
 EVAL_JOB_ID="${EVAL_JOB_ID:-}"
 export EVAL_JOB_ID
 
@@ -47,15 +47,23 @@ export DEPLOYED_MODEL_NAMESPACE="${DEPLOYED_MODEL_NAMESPACE:-default}"
 export BENCHMARKS="${BENCHMARKS:-[]}"
 export LANGUAGE="${LANGUAGE:-en}"
 export USE_GATEWAY="${USE_GATEWAY:-false}"
+
+# Judge model config
 export JUDGE_MODEL="${JUDGE_MODEL:-}"
 export JUDGE_MODEL_API="${JUDGE_MODEL_API:-}"
 export JUDGE_MODEL_BASE_URL="${JUDGE_MODEL_BASE_URL:-}"
+export JUDGE_MODEL_PROVIDER="${JUDGE_MODEL_PROVIDER:-openai}"
+
+# Simulator model config
 export SIMULATOR_MODEL="${SIMULATOR_MODEL:-}"
 export SIMULATOR_MODEL_API="${SIMULATOR_MODEL_API:-}"
 export SIMULATOR_MODEL_BASE_URL="${SIMULATOR_MODEL_BASE_URL:-}"
+export SIMULATOR_MODEL_PROVIDER="${SIMULATOR_MODEL_PROVIDER:-openai}"
+
 export QUALITY_METRICS="${QUALITY_METRICS:-[]}"
 export CONVERSATION_METRICS="${CONVERSATION_METRICS:-[]}"
 export PERFORMANCE_METRICS="${PERFORMANCE_METRICS:-[]}"
+export CUSTOM_EVAL_DATASETS="${CUSTOM_EVAL_DATASETS:-[]}"
 export RESULTS_REPO="${RESULTS_REPO:-eval-results}"
 export RESULTS_BRANCH="${RESULTS_BRANCH:-main}"
 export SECURITY_TESTS="${SECURITY_TESTS:-[]}"
@@ -83,10 +91,13 @@ echo " LANGUAGE: ${LANGUAGE}"
 echo " USE_GATEWAY: ${USE_GATEWAY}"
 echo " JUDGE_MODEL: ${JUDGE_MODEL:-none}"
 echo " JUDGE_MODEL_BASE_URL: ${JUDGE_MODEL_BASE_URL:-default}"
+echo " JUDGE_MODEL_PROVIDER: ${JUDGE_MODEL_PROVIDER}"
 echo " SIMULATOR_MODEL: ${SIMULATOR_MODEL:-same as judge}"
 echo " SIMULATOR_MODEL_BASE_URL: ${SIMULATOR_MODEL_BASE_URL:-same as judge}"
+echo " SIMULATOR_MODEL_PROVIDER: ${SIMULATOR_MODEL_PROVIDER}"
 echo " SECURITY_TESTS: ${SECURITY_TESTS}"
 echo " RED_TEAMING: ${RED_TEAMING_CONFIG}"
+echo " CUSTOM_EVAL_DATASETS: ${CUSTOM_EVAL_DATASETS}"
 echo "=========================================="
 
 # Generate config

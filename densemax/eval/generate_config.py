@@ -31,24 +31,32 @@ def generate_config(config_path):
     deployed_model_name = os.environ.get('DEPLOYED_MODEL_NAME', '')
     model_endpoint = os.environ.get('MODEL_ENDPOINT', '')
     language = os.environ.get('LANGUAGE', 'en')
+
+    # Judge model config
     judge_model = os.environ.get('JUDGE_MODEL', '')
     judge_model_api = os.environ.get('JUDGE_MODEL_API', '')
     judge_model_base_url = os.environ.get('JUDGE_MODEL_BASE_URL', '')
+    judge_model_provider = os.environ.get('JUDGE_MODEL_PROVIDER', 'openai')
+
+    # Simulator model config
     simulator_model = os.environ.get('SIMULATOR_MODEL', '')
     simulator_model_api = os.environ.get('SIMULATOR_MODEL_API', '')
     simulator_model_base_url = os.environ.get('SIMULATOR_MODEL_BASE_URL', '')
+    simulator_model_provider = os.environ.get('SIMULATOR_MODEL_PROVIDER', 'openai')
+
     benchmarks_json = os.environ.get('BENCHMARKS', '[]')
     quality_metrics_json = os.environ.get('QUALITY_METRICS', '[]')
     conversation_metrics_json = os.environ.get('CONVERSATION_METRICS', '[]')
     security_tests_json = os.environ.get('SECURITY_TESTS', '[]')
     red_teaming_config_json = os.environ.get('RED_TEAMING_CONFIG', '{}')
+    custom_eval_datasets_json = os.environ.get('CUSTOM_EVAL_DATASETS', '[]')
 
     # Add judge model target if configured
     if judge_model:
         judge_target = {
             'name': 'judge-model',
             'type': 'llm',
-            'provider': 'openai',
+            'provider': judge_model_provider,
             'model': judge_model,
         }
         if judge_model_api:
@@ -56,13 +64,14 @@ def generate_config(config_path):
         if judge_model_base_url:
             judge_target['base_url'] = judge_model_base_url
         config['targets'].append(judge_target)
+        print(f"Added judge target: {judge_model} (provider: {judge_model_provider})")
 
     # Add simulator model target if configured (separate from judge)
-    if simulator_model and simulator_model != judge_model:
+    if simulator_model and (simulator_model != judge_model or simulator_model_base_url != judge_model_base_url):
         simulator_target = {
             'name': 'simulator-model',
             'type': 'llm',
-            'provider': 'openai',
+            'provider': simulator_model_provider,
             'model': simulator_model,
         }
         sim_api = simulator_model_api or judge_model_api
@@ -72,12 +81,13 @@ def generate_config(config_path):
         if sim_base_url:
             simulator_target['base_url'] = sim_base_url
         config['targets'].append(simulator_target)
+        print(f"Added simulator target: {simulator_model} (provider: {simulator_model_provider})")
 
     # Main target - model under test
     main_target = {
         'name': 'model-under-test',
         'type': 'llm',
-        'provider': 'openai',
+        'provider': 'openai',  # vLLM uses OpenAI-compatible API
         'model': deployed_model_name,
         'base_url': model_endpoint,
         'api_key': 'sk-no-key-required',
@@ -87,6 +97,71 @@ def generate_config(config_path):
         },
         'evaluations': [],
     }
+
+    try:
+        custom_eval_datasets = json.loads(custom_eval_datasets_json)
+        for d in custom_eval_datasets:
+            repo_id = d.get('repoId')
+            ref = d.get('ref', 'main')
+
+            if not repo_id:
+                print(f"Warning: Custom eval dataset {d.get('name')} has no repoId, skipping")
+                continue
+
+            dataset_path = f"lakefs://{repo_id}/{ref}"
+
+            columns = d.get('columns', {})
+
+            benchmark_config = {
+                'name': d.get('name', 'custom_eval'),
+                'backend': 'custom_eval',
+                'source': dataset_path,
+                'columns': {
+                    'instruction': columns.get('instruction', 'instruction'),
+                    'answer': columns.get('answer', 'answer'),
+                },
+            }
+
+            # Optional columns
+            if columns.get('system_prompt'):
+                benchmark_config['columns']['system_prompt'] = columns['system_prompt']
+            if columns.get('eval_type'):
+                benchmark_config['columns']['eval_type'] = columns['eval_type']
+            if columns.get('judge_criteria'):
+                benchmark_config['columns']['judge_criteria'] = columns['judge_criteria']
+
+            # MCQ options
+            if d.get('choicesColumns'):
+                benchmark_config['choices_columns'] = d['choicesColumns']
+                benchmark_config['choices_labels'] = d.get('choicesLabels', ['A', 'B', 'C', 'D'])
+
+            # Prompt template
+            if d.get('promptTemplate'):
+                benchmark_config['prompt_template'] = d['promptTemplate']
+            if d.get('stopSequences'):
+                benchmark_config['stop_sequences'] = d['stopSequences']
+
+            # Limit
+            if d.get('limit'):
+                benchmark_config['limit'] = d['limit']
+
+            # Default judge criteria
+            if d.get('defaultJudgeCriteria'):
+                benchmark_config['judge_criteria'] = d['defaultJudgeCriteria']
+
+            # Judge model
+            if judge_model:
+                benchmark_config['judge_model'] = {'target': 'judge-model'}
+
+            main_target['evaluations'].append({
+                'name': f"custom-{d.get('name', 'eval').lower().replace(' ', '-')}",
+                'benchmarks': [benchmark_config],
+            })
+
+            print(f"Added custom eval dataset: {d.get('name')} from {dataset_path}")
+
+    except json.JSONDecodeError as e:
+        print(f"Warning: Failed to parse CUSTOM_EVAL_DATASETS: {e}")
 
     # Parse benchmarks
     try:
@@ -135,18 +210,16 @@ def generate_config(config_path):
         for m in quality_metrics:
             dataset_repo = m.get('datasetRepo')
             dataset_ref = m.get('datasetRef', 'main')
-            dataset_path = m.get('datasetPath', '')
+            dataset_path = m.get('datasetPath')
 
             if not dataset_repo:
                 print(f"Warning: Quality metric {m.get('name')} has no dataset repo, skipping")
                 continue
 
-            if not dataset_path:
-                print(f"Warning: Quality metric {m.get('name')} has no dataset path, skipping")
-                continue
-
-            # Build full LakeFS path
-            dataset_full_path = f"lakefs://{dataset_repo}/{dataset_ref}/{dataset_path}"
+            if dataset_path:
+                dataset_full_path = f"lakefs://{dataset_repo}/{dataset_ref}/{dataset_path}"
+            else:
+                dataset_full_path = f"lakefs://{dataset_repo}/{dataset_ref}"
 
             metric_config = {
                 'name': m.get('name', '').lower(),
@@ -154,6 +227,10 @@ def generate_config(config_path):
             }
             if m.get('criteria'):
                 metric_config['criteria'] = m['criteria']
+
+            limit = m.get('limit')
+            if limit:
+                metric_config['limit'] = limit
 
             if judge_model:
                 metric_config['judge_model'] = {'target': 'judge-model'}
@@ -172,14 +249,29 @@ def generate_config(config_path):
         for m in conversation_metrics:
             dataset_repo = m.get('datasetRepo')
             dataset_ref = m.get('datasetRef', 'main')
+            dataset_path = m.get('datasetPath')
+
             if not dataset_repo:
-                print(f"Warning: Conversation metric {m.get('name')} has no dataset, skipping")
+                print(f"Warning: Conversation metric {m.get('name')} has no dataset repo, skipping")
                 continue
 
+            if dataset_path:
+                dataset_full_path = f"lakefs://{dataset_repo}/{dataset_ref}/{dataset_path}"
+            else:
+                dataset_full_path = f"lakefs://{dataset_repo}/{dataset_ref}"
+
             metric_name = m.get('name', '').lower().replace(' ', '_')
+
+            metric_type_map = {
+                'conversation_quality': 'conversational_g_eval',
+                'conversation_coherence': 'conversation_coherence',
+                'context_retention': 'context_retention',
+                'turn_analysis': 'turn_analysis',
+            }
+
             metric_config = {
                 'name': metric_name,
-                'type': metric_name,
+                'type': metric_type_map.get(metric_name, 'conversational_g_eval'),
             }
 
             config_label = m.get('configLabel', '').lower().replace(' ', '_')
@@ -187,12 +279,16 @@ def generate_config(config_path):
             if config_label and config_value is not None:
                 metric_config[config_label] = config_value
 
+            limit = m.get('limit')
+            if limit:
+                metric_config['limit'] = limit
+
             if judge_model:
                 metric_config['judge_model'] = {'target': 'judge-model'}
 
             main_target['evaluations'].append({
                 'name': f"conv-{m.get('name', '').lower().replace(' ', '-')}",
-                'dataset': f"lakefs://{dataset_repo}/{dataset_ref}",
+                'dataset': dataset_full_path,
                 'metrics': [metric_config],
             })
     except json.JSONDecodeError as e:
@@ -239,35 +335,22 @@ def generate_config(config_path):
                 if purpose:
                     red_teaming['purpose'] = purpose
 
-                if simulator_model:
-                    red_teaming['simulator_model'] = simulator_model
-                    if simulator_model != judge_model:
-                        red_teaming['simulator_target'] = 'simulator-model'
-                    sim_base_url = simulator_model_base_url or judge_model_base_url
-                    if sim_base_url:
-                        red_teaming['simulator_base_url'] = sim_base_url
+                # Simulator model - use target reference if we have a target, otherwise string
+                if simulator_model and (simulator_model != judge_model or simulator_model_base_url != judge_model_base_url):
+                    # Separate simulator target exists
+                    red_teaming['simulator_model'] = {'target': 'simulator-model'}
                 elif judge_model:
-                    red_teaming['simulator_model'] = judge_model
-                    red_teaming['simulator_target'] = 'judge-model'
-                    if judge_model_base_url:
-                        red_teaming['simulator_base_url'] = judge_model_base_url
+                    # Use judge as simulator
+                    red_teaming['simulator_model'] = {'target': 'judge-model'}
                 else:
+                    # Fallback to string (OpenAI default)
                     red_teaming['simulator_model'] = 'gpt-3.5-turbo'
 
+                # Evaluation model - use target reference
                 if judge_model:
-                    red_teaming['evaluation_model'] = judge_model
-                    red_teaming['evaluation_target'] = 'judge-model'
-                    if judge_model_base_url:
-                        red_teaming['evaluation_base_url'] = judge_model_base_url
+                    red_teaming['evaluation_model'] = {'target': 'judge-model'}
                 else:
                     red_teaming['evaluation_model'] = 'gpt-4o-mini'
-
-                api_key = simulator_model_api or judge_model_api
-                if api_key:
-                    os.environ['OPENAI_API_KEY'] = api_key
-                    print(f"Set OPENAI_API_KEY from {'simulator' if simulator_model_api else 'judge'} model API")
-                else:
-                    print("WARNING: No API key provided for simulator/judge models. Red teaming may fail.")
 
                 main_target['red_teaming'] = red_teaming
                 main_target['guardrails'] = {'enabled': False}
@@ -275,10 +358,8 @@ def generate_config(config_path):
                 print(f"Red teaming enabled:")
                 print(f"  - Vulnerabilities: {len(vulnerabilities)}")
                 print(f"  - Attack types: {list(all_attacks)}")
-                print(f"  - Simulator model: {red_teaming.get('simulator_model')} (target: {red_teaming.get('simulator_target', 'default')})")
-                print(f"  - Simulator base URL: {red_teaming.get('simulator_base_url', 'default')}")
-                print(f"  - Evaluation model: {red_teaming.get('evaluation_model')} (target: {red_teaming.get('evaluation_target', 'default')})")
-                print(f"  - Evaluation base URL: {red_teaming.get('evaluation_base_url', 'default')}")
+                print(f"  - Simulator model: {red_teaming.get('simulator_model')}")
+                print(f"  - Evaluation model: {red_teaming.get('evaluation_model')}")
 
     except json.JSONDecodeError as e:
         print(f"Warning: Failed to parse SECURITY_TESTS or RED_TEAMING_CONFIG: {e}")
