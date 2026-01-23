@@ -67,20 +67,29 @@ RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.
     tar xz -C /usr/local/bin --strip-components=1 docker/docker
 
 # Add surogate-eval
-ARG SUROGATE_CACHE_BUST=44
-RUN uv pip install "torch==2.9.1+cu129" "torchvision==0.24.1+cu129" "torchaudio==2.9.1+cu129" --index-url https://download.pytorch.org/whl/cu129 \
-    && uv pip install "git+https://github.com/invergent-ai/surogate_eval.git@main#egg=surogate-eval[security,vision,rag]" --torch-backend=auto
-
+ARG SUROGATE_CACHE_BUST=4
+RUN uv pip install "torch==2.9.0+cu129" "torchvision==0.24.0+cu129" "torchaudio==2.9.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
+    && uv pip install "git+https://github.com/invergent-ai/surogate_eval.git@main#egg=surogate-eval[security,vision,rag]"
 
 ## Base env
 RUN cd /opt/densemax && pipx install "ray[default,serve]==2.50.1" && pipx ensurepath
+
+# WeasyPrint dependencies for PDF generation and iproute2
+RUN apt-get update && apt-get install -y \
+    libglib2.0-0 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf2.0-0 \
+    libffi-dev \
+    shared-mime-info \
+    iproute2 \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN rm -f /opt/*.whl \
     && rm -f /opt/*.deb \
     && rm -rf /opt/densemax/serve/production-stack \
     && apt-get clean
 
-RUN apt install iproute2 -y
 ## Custom scripts (keep this section at the end for easy image updates)
 RUN mkdir /scripts
 

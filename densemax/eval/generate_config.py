@@ -31,8 +31,9 @@ def generate_config(config_path):
     deployed_model_name = os.environ.get('DEPLOYED_MODEL_NAME', '')
     model_endpoint = os.environ.get('MODEL_ENDPOINT', '')
     language = os.environ.get('LANGUAGE', 'en')
+    model_tokenizer = os.environ.get('MODEL_TOKENIZER', '')
 
-    # Judge model config
+# Judge model config
     judge_model = os.environ.get('JUDGE_MODEL', '')
     judge_model_api = os.environ.get('JUDGE_MODEL_API', '')
     judge_model_base_url = os.environ.get('JUDGE_MODEL_BASE_URL', '')
@@ -83,6 +84,7 @@ def generate_config(config_path):
         config['targets'].append(simulator_target)
         print(f"Added simulator target: {simulator_model} (provider: {simulator_model_provider})")
 
+
     # Main target - model under test
     main_target = {
         'name': 'model-under-test',
@@ -91,6 +93,7 @@ def generate_config(config_path):
         'model': deployed_model_name,
         'base_url': model_endpoint,
         'api_key': 'sk-no-key-required',
+        'tokenizer': model_tokenizer if model_tokenizer else None,  # ADD
         'infrastructure': {
             'backend': 'local',
             'workers': 2,
@@ -368,6 +371,10 @@ def generate_config(config_path):
         print(f"Warning: Failed to parse SECURITY_TESTS or RED_TEAMING_CONFIG: {e}")
         import traceback
         traceback.print_exc()
+
+    if not main_target.get('tokenizer'):
+        main_target.pop('tokenizer', None)
+
 
     config['targets'].append(main_target)
 
