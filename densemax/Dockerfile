@@ -73,7 +73,7 @@ RUN uv pip install "torch==2.9.1+cu129" "torchvision==0.24.1+cu129" "torchaudio=
 
 
 ## Base env
-RUN cd /opt/densemax && pipx install "ray[default,serve]==2.50.1" && pipx ensurepath
+RUN cd /opt/densemax && pipx install "ray[default,serve]==2.50.1" && ln -sf /root/.local/bin/ray /usr/local/bin/ray
 
 RUN rm -f /opt/*.whl \
     && rm -f /opt/*.deb \
