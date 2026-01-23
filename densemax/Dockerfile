@@ -19,14 +19,14 @@ RUN curl -o /usr/bin/lakectl https://densemax.s3.eu-central-1.amazonaws.com/lake
 RUN mkdir -p /opt/densemax/quant
 WORKDIR /opt/densemax/quant
 RUN uv venv --python 3.12
-RUN uv pip install "torch==2.9.0+cu129" "torchvision==0.24.0+cu129" "torchaudio==2.9.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
-    && uv pip install "llmcompressor==0.8.1"
+RUN uv pip install "torch==2.9.1+cu129" "torchvision==0.24.1+cu129" "torchaudio==2.9.1+cu129" --index-url https://download.pytorch.org/whl/cu129 \
+    && uv pip install "llmcompressor==0.9.0.1" --torch-backend=auto
 
 ## Serving
 ENV VLLM_COMMIT=b2e65cb4a7ea7c000517a7b78a6e0ccd9ecb0517
 WORKDIR /opt/densemax/serve
 RUN uv venv --python 3.12
-RUN uv pip install "torch==2.9.0+cu129" "torchvision==0.24.0+cu129" "torchaudio==2.9.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
+RUN uv pip install "torch==2.9.1+cu129" "torchvision==0.24.1+cu129" "torchaudio==2.9.1+cu129" --index-url https://download.pytorch.org/whl/cu129 \
     && uv pip install vllm --torch-backend=auto \
     && uv pip install "ray[default,serve]==2.50.1" \
     && uv pip install lmcache "nixl >= 0.6.0"
@@ -37,12 +37,26 @@ RUN git clone --depth=1 https://github.com/vllm-project/production-stack.git \
     && uv pip install -e .[semantic_cache] \
     && uv pip install lmcache==0.3.11
 
-## Training
+## Training with Surogate
 WORKDIR /opt/densemax/train
 RUN uv venv --python 3.12
-RUN uv pip install wandb aim \
-    && uv pip install "torch==2.9.0+cu129" "torchvision==0.24.0+cu129" "torchaudio==2.9.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
-    && uv pip install https://github.com/invergent-ai/surogate/releases/download/v0.0.6/surogate-0.0.6+cu129-cp312-abi3-manylinux_2_39_x86_64.whl
+RUN uv pip install wandb aim envsubst "ray==2.50.1" \
+    && uv pip install "torch==2.9.1+cu129" "torchvision==0.24.1+cu129" "torchaudio==2.9.1+cu129" --index-url https://download.pytorch.org/whl/cu129 \
+    && uv pip install https://github.com/invergent-ai/surogate/releases/download/v0.0.6/surogate-0.0.6+cu129-cp312-abi3-manylinux_2_39_x86_64.whl --torch-backend=auto
+
+# Training with Axolotl
+WORKDIR /opt/densemax/train-axolotl
+RUN uv venv --python 3.12
+RUN uv pip install "torch==2.8.0+cu129" "torchvision==0.23.0+cu129" --index-url https://download.pytorch.org/whl/cu129
+RUN uv pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp312-cp312-linux_x86_64.whl
+RUN uv pip install wheel aim "cut-cross-entropy[transformers] @ git+https://github.com/axolotl-ai-cloud/ml-cross-entropy.git@147ea28" envsubst "ray[default,serve,tune]==2.50.1" "deepspeed==0.17.5"
+RUN git clone --depth=1 https://github.com/invergent-ai/axolotl.git \
+    && cd axolotl \
+    && uv pip install -r requirements.txt \
+    && uv pip install --no-build-isolation -e .[deepspeed,flash-attn,ring-flash-attn,optimizers,ray]
+ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/bitsandbytes-0.48.1%2Binvergent-cp312-cp312-linux_x86_64.whl /opt/
+RUN uv pip uninstall bitsandbytes \
+    && uv pip install /opt/bitsandbytes-0.48.1+invergent-cp312-cp312-linux_x86_64.whl
 
 ## Evaluation
 WORKDIR /opt/densemax/eval
@@ -54,8 +68,8 @@ RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.
 
 # Add surogate-eval
 ARG SUROGATE_CACHE_BUST=36
-RUN uv pip install "torch==2.9.0+cu129" "torchvision==0.24.0+cu129" "torchaudio==2.9.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
-    && uv pip install "git+https://github.com/invergent-ai/surogate_eval.git@main#egg=surogate-eval[security,vision,rag]"
+RUN uv pip install "torch==2.9.1+cu129" "torchvision==0.24.1+cu129" "torchaudio==2.9.1+cu129" --index-url https://download.pytorch.org/whl/cu129 \
+    && uv pip install "git+https://github.com/invergent-ai/surogate_eval.git@main#egg=surogate-eval[security,vision,rag]" --torch-backend=auto
 
 
 ## Base env
@@ -72,6 +86,7 @@ RUN mkdir /scripts
 
 COPY job-entry.sh /usr/bin/job-entry
 COPY train/train.sh /usr/bin/train
+COPY train/train-axolotl.sh /usr/bin/train-axolotl
 COPY quant/quantization.py /scripts
 COPY quant/quantize.sh /usr/bin/quantize
 COPY eval/run_eval.sh /usr/bin/eval
@@ -79,7 +94,7 @@ COPY eval/generate_config.py /opt/densemax/eval/generate_config.py
 
 
 RUN chmod a+x /usr/bin/job-entry \
-    && chmod a+x /usr/bin/train \
+    && chmod a+x /usr/bin/train* \
     && chmod a+x /usr/bin/quantize \
     && chmod a+x /usr/bin/eval
 
