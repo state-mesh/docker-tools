@@ -2,7 +2,7 @@
 
 set -e
 
-cd /opt/densemax/train
+cd /opt/densemax/train-axolotl
 
 export PYTHONUNBUFFERED=1
 CONFIG=$WORK_DIR/axolotl_solved.yaml
