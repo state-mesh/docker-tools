@@ -27,7 +27,7 @@ for ds in "${DATASETS[@]}"; do
 done
 
 echo "Training base model: ${BASE_MODEL}"
-uv run axolotl train $CONFIG --num-processes 1
+.venv/bin/axolotl train $CONFIG --num-processes 1
 
 echo "Preparing lakefs branch"
 lakectl branch create lakefs://$SOURCE_REPO/$BRANCH -s lakefs://$BASE_MODEL
@@ -37,7 +37,7 @@ if [[ "$LORA_ADAPTER" == "true" ]]; then
   lakectl fs upload -rs $WORK_DIR/outputs/lora/ lakefs://$SOURCE_REPO/$BRANCH/
 else
   echo "Merging LoRA into the base model"
-  uv run axolotl merge-lora $CONFIG --lora-model-dir=$WORK_DIR/outputs/merged/ \
+  .venv/bin/axolotl merge-lora $CONFIG --lora-model-dir=$WORK_DIR/outputs/merged/ \
             --output-dir=$WORK_DIR/outputs/
   echo "Uploading merged model"
   lakectl fs upload -rs $WORK_DIR/outputs/merged/ lakefs://$SOURCE_REPO/$BRANCH/
