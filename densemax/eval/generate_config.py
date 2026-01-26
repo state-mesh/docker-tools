@@ -114,9 +114,10 @@ def generate_config(config_path):
 
             dataset_path = f"lakefs://{repo_id}/{ref}"
             columns = d.get('columns', {})
+            eval_name = d.get('name') or d.get('repoId', '').split('/')[-1] or 'eval'
 
             benchmark_config = {
-                'name': d.get('name', 'custom_eval'),
+                'name': eval_name,
                 'backend': 'custom_eval',
                 'source': dataset_path,
                 'columns': {
@@ -152,7 +153,7 @@ def generate_config(config_path):
                 benchmark_config['judge_model'] = {'target': 'judge-model'}
 
             main_target['evaluations'].append({
-                'name': f"custom-{d.get('name', 'eval').lower().replace(' ', '-')}",
+                'name': f"custom-{eval_name.lower().replace(' ', '-')}",
                 'benchmarks': [benchmark_config],
             })
 
