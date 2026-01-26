@@ -32,7 +32,7 @@ def generate_config(config_path):
     model_endpoint = os.environ.get('MODEL_ENDPOINT', '')
     language = os.environ.get('LANGUAGE', 'en')
     model_tokenizer = os.environ.get('MODEL_TOKENIZER', '')
-
+    model_max_tokens = os.environ.get('MODEL_MAX_TOKENS', '')
 # Judge model config
     judge_model = os.environ.get('JUDGE_MODEL', '')
     judge_model_api = os.environ.get('JUDGE_MODEL_API', '')
@@ -87,13 +87,13 @@ def generate_config(config_path):
 
     # Main target - model under test
     main_target = {
-        'name': 'model-under-test',
+        'name': deployed_model_name or 'model-under-test',  # Use actual model name
         'type': 'llm',
         'provider': 'openai',
         'model': deployed_model_name,
         'base_url': model_endpoint,
         'api_key': 'sk-no-key-required',
-        'tokenizer': model_tokenizer if model_tokenizer else None,  # ADD
+        'tokenizer': model_tokenizer if model_tokenizer else None,
         'infrastructure': {
             'backend': 'local',
             'workers': 2,
@@ -125,6 +125,8 @@ def generate_config(config_path):
                 },
             }
 
+            if model_max_tokens:
+                benchmark_config['max_tokens'] = int(model_max_tokens)
             # Optional columns
             if columns.get('eval_type'):
                 benchmark_config['columns']['eval_type'] = columns['eval_type']
@@ -173,6 +175,9 @@ def generate_config(config_path):
                     'name': benchmark_name,
                     'num_fewshot': b.get('shots', 0) if supports_fewshot else 0,
                 }
+
+                if model_max_tokens:
+                    benchmark['max_tokens'] = int(model_max_tokens)
 
                 limit = b.get('limit')
                 if limit:
