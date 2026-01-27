@@ -33,7 +33,8 @@ def generate_config(config_path):
     language = os.environ.get('LANGUAGE', 'en')
     model_tokenizer = os.environ.get('MODEL_TOKENIZER', '')
     model_max_tokens = os.environ.get('MODEL_MAX_TOKENS', '')
-# Judge model config
+
+    # Judge model config
     judge_model = os.environ.get('JUDGE_MODEL', '')
     judge_model_api = os.environ.get('JUDGE_MODEL_API', '')
     judge_model_base_url = os.environ.get('JUDGE_MODEL_BASE_URL', '')
@@ -84,10 +85,9 @@ def generate_config(config_path):
         config['targets'].append(simulator_target)
         print(f"Added simulator target: {simulator_model} (provider: {simulator_model_provider})")
 
-
     # Main target - model under test
     main_target = {
-        'name': deployed_model_name or 'model-under-test',  # Use actual model name
+        'name': deployed_model_name or 'model-under-test',
         'type': 'llm',
         'provider': 'openai',
         'model': deployed_model_name,
@@ -115,11 +115,13 @@ def generate_config(config_path):
             dataset_path = f"lakefs://{repo_id}/{ref}"
             columns = d.get('columns', {})
             eval_name = d.get('name') or d.get('repoId', '').split('/')[-1] or 'eval'
+            eval_type = d.get('evalType', 'exact_match')
 
             benchmark_config = {
                 'name': eval_name,
                 'backend': 'custom_eval',
                 'source': dataset_path,
+                'eval_type': eval_type,
                 'columns': {
                     'instruction': columns.get('instruction', 'instruction'),
                     'answer': columns.get('answer', 'answer'),
@@ -128,7 +130,8 @@ def generate_config(config_path):
 
             if model_max_tokens:
                 benchmark_config['max_tokens'] = int(model_max_tokens)
-            # Optional columns
+
+            # Optional columns - only for hybrid mode
             if columns.get('eval_type'):
                 benchmark_config['columns']['eval_type'] = columns['eval_type']
             if columns.get('judge_criteria'):
@@ -144,12 +147,12 @@ def generate_config(config_path):
             if d.get('limit'):
                 benchmark_config['limit'] = d['limit']
 
-            # Default judge criteria
-            if d.get('defaultJudgeCriteria'):
+            # Default judge criteria - only for judge/hybrid
+            if d.get('defaultJudgeCriteria') and eval_type != 'exact_match':
                 benchmark_config['judge_criteria'] = d['defaultJudgeCriteria']
 
-            # Judge model
-            if judge_model:
+            # Judge model - only for judge/hybrid modes
+            if judge_model and eval_type != 'exact_match':
                 benchmark_config['judge_model'] = {'target': 'judge-model'}
 
             main_target['evaluations'].append({
@@ -157,7 +160,7 @@ def generate_config(config_path):
                 'benchmarks': [benchmark_config],
             })
 
-            print(f"Added custom eval dataset: {d.get('name')} from {dataset_path}")
+            print(f"Added custom eval dataset: {d.get('name')} from {dataset_path} (eval_type: {eval_type})")
 
     except json.JSONDecodeError as e:
         print(f"Warning: Failed to parse CUSTOM_EVAL_DATASETS: {e}")
@@ -208,7 +211,7 @@ def generate_config(config_path):
                         dataset_path = f"lakefs://{dataset_repo}/{dataset_ref}"
                         benchmark['path'] = dataset_path
                         benchmark['dataset_hub'] = 'local'
-                        benchmark['subset'] = dataset_subset  # NEW
+                        benchmark['subset'] = dataset_subset
                         print(f"Using custom dataset for {benchmark_name}: {dataset_path} (subset: {dataset_subset})")
 
                 benchmark_list.append(benchmark)
@@ -380,7 +383,6 @@ def generate_config(config_path):
 
     if not main_target.get('tokenizer'):
         main_target.pop('tokenizer', None)
-
 
     config['targets'].append(main_target)
 
