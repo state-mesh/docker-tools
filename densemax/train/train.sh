@@ -34,14 +34,10 @@ lakectl branch create lakefs://$SOURCE_REPO/$BRANCH -s lakefs://$BASE_MODEL
 
 if [[ "$LORA_ADAPTER" == "true" ]]; then
   echo "Uploading LoRA adapter"
-  lakectl fs upload -rs $WORK_DIR/outputs/lora/ lakefs://$SOURCE_REPO/$BRANCH/
 else
-  echo "Merging LoRA into the base model"
-  uv run axolotl merge-lora $CONFIG --lora-model-dir=$WORK_DIR/outputs/merged/ \
-            --output-dir=$WORK_DIR/outputs/
   echo "Uploading merged model"
-  lakectl fs upload -rs $WORK_DIR/outputs/merged/ lakefs://$SOURCE_REPO/$BRANCH/
 fi
+lakectl fs upload -rs $WORK_DIR/outputs/ lakefs://$SOURCE_REPO/$BRANCH/
 
 echo "Commiting lakefs branch"
 lakectl commit lakefs://$SOURCE_REPO/$BRANCH --message "Fine-tuning of $BASE_MODEL" \
