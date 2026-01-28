@@ -8,7 +8,7 @@ export PYTHONUNBUFFERED=1
 CONFIG=$WORK_DIR/axolotl_solved.yaml
 SOURCE_REPO="${BASE_MODEL%%/*}"
 IFS=',' read -ra DATASETS <<< "$DATASET"
-[[ "${MERGE_LORA:-false}" != "true" ]] && LORA_ADAPTER=true || LORA_ADAPTER=false
+[[ "${LORA:-false}" == "true" ]] && [[ "${MERGE_LORA:-false}" != "true" ]] && LORA_ADAPTER=true || LORA_ADAPTER=false
 
 echo "Preparing config file"
 echo "$AXOLOTL_CONFIG" > $CONFIG
@@ -36,11 +36,16 @@ if [[ "$LORA_ADAPTER" == "true" ]]; then
   echo "Uploading LoRA adapter"
   lakectl fs upload -rs $WORK_DIR/outputs/lora/ lakefs://$SOURCE_REPO/$BRANCH/
 else
-  echo "Merging LoRA into the base model"
-  .venv/bin/axolotl merge-lora $CONFIG --lora-model-dir=$WORK_DIR/outputs/lora/ \
-            --output-dir=$WORK_DIR/outputs/merged/
-  echo "Uploading merged model"
-  lakectl fs upload -rs $WORK_DIR/outputs/merged/ lakefs://$SOURCE_REPO/$BRANCH/
+  if [[ "${MERGE_LORA:-false}" == "true" ]]; then
+    echo "Merging LoRA into the base model"
+    .venv/bin/axolotl merge-lora $CONFIG --lora-model-dir=$WORK_DIR/outputs/lora/ \
+                      --output-dir=$WORK_DIR/outputs/
+    echo "Uploading merged model"
+    lakectl fs upload -rs $WORK_DIR/outputs/merged/ lakefs://$SOURCE_REPO/$BRANCH/
+  else
+    echo "Uploading fully trained model"
+    lakectl fs upload -rs $WORK_DIR/outputs/ lakefs://$SOURCE_REPO/$BRANCH/
+  fi
 fi
 
 echo "Commiting lakefs branch"

@@ -1,20 +1,22 @@
 import subprocess, threading, requests, os, signal, time, sys
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
+from pathlib import Path
 
 app = FastAPI(title="vLLM Proxy Controller")
 
 # --- Configuration ---
 MODEL_PATH = "/opt/work/model"
-LORA_PATH = "/opt/work/outputs/lora"
-MERGED_PATH = "/opt/work/outputs/merged"
-QUANTIZED_PATH = "/opt/work/outputs/quantized"
+OUTPUT_PATH = "/opt/work/outputs"
+LORA_PATH = OUTPUT_PATH + "/lora"
+MERGED_PATH = OUTPUT_PATH + "/merged"
+
 VLLM_PORT = 8000
 VLLM_URL = f"http://127.0.0.1:{VLLM_PORT}"
 VLLM_PROC = None
 VLLM_TP = os.getenv("VLLM_TP", "1")
+LORA = os.getenv("LORA", "false")
 MERGED = os.getenv("MERGE_LORA", "false")
-QUANTIZED = os.getenv("QUANTIZE", "false")
 
 # --- Start endpoint ---
 @app.post("/start")
@@ -34,24 +36,32 @@ def start_vllm():
     ]
 
     if MERGED.lower() == "true":
-        if QUANTIZED.lower() == "true":
+        resolved_merged_path = (
+            MERGED_PATH if is_valid_merged_model(MERGED_PATH) else OUTPUT_PATH
+        )
+        cmd += [
+            "--model", resolved_merged_path
+        ]
+        print(f"Serving merged model from path {resolved_merged_path}")
+    else:
+        if LORA.lower() == "true":
+            resolved_lora_path = (
+                LORA_PATH if is_valid_lora(LORA_PATH) else OUTPUT_PATH
+            )
             cmd += [
-                "--model", QUANTIZED_PATH
+                "--model", MODEL_PATH,
+                "--enable-lora",
+                "--max-lora-rank", "256",
+                f"--lora-modules", f"test-lora={resolved_lora_path}"
             ]
-            print(f"Serving quantized model from path {QUANTIZED_PATH}")
+            print(f"Serving lora adapter from path {resolved_lora_path} on base model from path {MODEL_PATH}")
         else:
             cmd += [
-                "--model", MERGED_PATH
+                "--model", OUTPUT_PATH
             ]
-            print(f"Serving merged model from path {MERGED_PATH}")
-    else:
-        cmd += [
-            "--model", MODEL_PATH,
-            "--enable-lora",
-            "--max-lora-rank", "256",
-            f"--lora-modules", f"test-lora={LORA_PATH}"
-        ]
-        print(f"Serving lora adapter from path {LORA_PATH} on base model from path {MODEL_PATH}")
+            print(f"Serving fully trained model from path {OUTPUT_PATH}")
+
+
 
     def run_vllm():
         global VLLM_PROC
@@ -139,3 +149,26 @@ async def proxy_vllm(path: str, request: Request):
 
     except requests.RequestException as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+def is_valid_merged_model(path: str) -> bool:
+    if not path:
+        return False
+    p = Path(path)
+    if not p.exists():
+        return False
+    return (
+            (p / "config.json").exists()
+            and (p / "model.safetensors").exists()
+    )
+
+def is_valid_lora(path: str) -> bool:
+    if not path:
+        return False
+    p = Path(path)
+    if not p.exists():
+        return False
+    return (
+            (p / "adapter_config.json").exists()
+            and (p / "adapter_model.safetensors").exists()
+    )
+

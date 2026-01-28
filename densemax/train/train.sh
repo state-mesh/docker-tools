@@ -8,7 +8,7 @@ export PYTHONUNBUFFERED=1
 CONFIG=$WORK_DIR/config_solved.yaml
 SOURCE_REPO="${BASE_MODEL%%/*}"
 IFS=',' read -ra DATASETS <<< "$DATASET"
-[[ "${MERGE_LORA:-false}" != "true" ]] && LORA_ADAPTER=true || LORA_ADAPTER=false
+[[ "${LORA:-false}" == "true" ]] && [[ "${MERGE_LORA:-false}" != "true" ]] && LORA_ADAPTER=true || LORA_ADAPTER=false
 
 echo "Preparing config file"
 echo "$AXOLOTL_CONFIG" > $CONFIG
@@ -35,7 +35,7 @@ lakectl branch create lakefs://$SOURCE_REPO/$BRANCH -s lakefs://$BASE_MODEL
 if [[ "$LORA_ADAPTER" == "true" ]]; then
   echo "Uploading LoRA adapter"
 else
-  echo "Uploading merged model"
+  echo "Uploading merged/full model"
 fi
 lakectl fs upload -rs $WORK_DIR/outputs/ lakefs://$SOURCE_REPO/$BRANCH/
 
