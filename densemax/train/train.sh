@@ -35,6 +35,8 @@ lakectl branch create lakefs://$SOURCE_REPO/$BRANCH -s lakefs://$BASE_MODEL
 if [[ "$LORA_ADAPTER" == "true" ]]; then
   echo "Uploading LoRA adapter"
 else
+  rm -rf $WORK_DIR/outputs/adapter_config.json
+  rm -rf $WORK_DIR/outputs/adapter_model.safetensors
   echo "Uploading merged/full model"
 fi
 lakectl fs upload -rs $WORK_DIR/outputs/ lakefs://$SOURCE_REPO/$BRANCH/
