@@ -3,6 +3,14 @@ import json
 import os
 import yaml
 
+def obfuscate_config(config):
+    """Deep copy config with API keys obfuscated."""
+    import copy
+    result = copy.deepcopy(config)
+    for target in result.get('targets', []):
+        if 'api_key' in target:
+            target['api_key'] = '***REDACTED***'
+    return result
 
 def sanitize_json(json_str):
     """Remove trailing extra braces if brace count is unbalanced."""
@@ -13,6 +21,42 @@ def sanitize_json(json_str):
         json_str = json_str[:-1]
         close_count -= 1
     return json_str
+
+
+def get_generation_params():
+    """Get generation parameters from environment variables."""
+    params = {}
+
+    model_temperature = os.environ.get('MODEL_TEMPERATURE', '')
+    model_top_p = os.environ.get('MODEL_TOP_P', '')
+    model_top_k = os.environ.get('MODEL_TOP_K', '')
+    model_min_p = os.environ.get('MODEL_MIN_P', '')
+    model_presence_penalty = os.environ.get('MODEL_PRESENCE_PENALTY', '')
+    model_max_tokens = os.environ.get('MODEL_MAX_TOKENS', '')
+    model_enable_thinking = os.environ.get('MODEL_ENABLE_THINKING', '')
+
+    if model_temperature:
+        params['temperature'] = float(model_temperature)
+    if model_top_p:
+        params['top_p'] = float(model_top_p)
+    if model_top_k:
+        params['top_k'] = int(model_top_k)
+    if model_min_p:
+        params['min_p'] = float(model_min_p)
+    if model_presence_penalty:
+        params['presence_penalty'] = float(model_presence_penalty)
+    if model_max_tokens:
+        params['max_tokens'] = int(model_max_tokens)
+    if model_enable_thinking:
+        params['enable_thinking'] = model_enable_thinking.lower() == 'true'
+
+    return params
+
+
+def apply_generation_params(config_dict, gen_params):
+    """Apply generation parameters to a config dict."""
+    for key, value in gen_params.items():
+        config_dict[key] = value
 
 
 def generate_config(config_path):
@@ -32,8 +76,11 @@ def generate_config(config_path):
     model_endpoint = os.environ.get('MODEL_ENDPOINT', '')
     language = os.environ.get('LANGUAGE', 'en')
     model_tokenizer = os.environ.get('MODEL_TOKENIZER', '')
-    model_max_tokens = os.environ.get('MODEL_MAX_TOKENS', '')
-# Judge model config
+
+    # Get generation parameters
+    gen_params = get_generation_params()
+
+    # Judge model config
     judge_model = os.environ.get('JUDGE_MODEL', '')
     judge_model_api = os.environ.get('JUDGE_MODEL_API', '')
     judge_model_base_url = os.environ.get('JUDGE_MODEL_BASE_URL', '')
@@ -84,10 +131,9 @@ def generate_config(config_path):
         config['targets'].append(simulator_target)
         print(f"Added simulator target: {simulator_model} (provider: {simulator_model_provider})")
 
-
     # Main target - model under test
     main_target = {
-        'name': deployed_model_name or 'model-under-test',  # Use actual model name
+        'name': deployed_model_name or 'model-under-test',
         'type': 'llm',
         'provider': 'openai',
         'model': deployed_model_name,
@@ -100,6 +146,9 @@ def generate_config(config_path):
         },
         'evaluations': [],
     }
+
+    # Apply generation params to main target
+    apply_generation_params(main_target, gen_params)
 
     # Parse custom eval datasets
     try:
@@ -115,20 +164,23 @@ def generate_config(config_path):
             dataset_path = f"lakefs://{repo_id}/{ref}"
             columns = d.get('columns', {})
             eval_name = d.get('name') or d.get('repoId', '').split('/')[-1] or 'eval'
+            eval_type = d.get('evalType', 'exact_match')
 
             benchmark_config = {
                 'name': eval_name,
                 'backend': 'custom_eval',
                 'source': dataset_path,
+                'eval_type': eval_type,
                 'columns': {
                     'instruction': columns.get('instruction', 'instruction'),
                     'answer': columns.get('answer', 'answer'),
                 },
             }
 
-            if model_max_tokens:
-                benchmark_config['max_tokens'] = int(model_max_tokens)
-            # Optional columns
+            # Apply generation params to benchmark
+            apply_generation_params(benchmark_config, gen_params)
+
+            # Optional columns - only for hybrid mode
             if columns.get('eval_type'):
                 benchmark_config['columns']['eval_type'] = columns['eval_type']
             if columns.get('judge_criteria'):
@@ -144,12 +196,12 @@ def generate_config(config_path):
             if d.get('limit'):
                 benchmark_config['limit'] = d['limit']
 
-            # Default judge criteria
-            if d.get('defaultJudgeCriteria'):
+            # Default judge criteria - only for judge/hybrid
+            if d.get('defaultJudgeCriteria') and eval_type != 'exact_match':
                 benchmark_config['judge_criteria'] = d['defaultJudgeCriteria']
 
-            # Judge model
-            if judge_model:
+            # Judge model - only for judge/hybrid modes
+            if judge_model and eval_type != 'exact_match':
                 benchmark_config['judge_model'] = {'target': 'judge-model'}
 
             main_target['evaluations'].append({
@@ -157,7 +209,7 @@ def generate_config(config_path):
                 'benchmarks': [benchmark_config],
             })
 
-            print(f"Added custom eval dataset: {d.get('name')} from {dataset_path}")
+            print(f"Added custom eval dataset: {d.get('name')} from {dataset_path} (eval_type: {eval_type})")
 
     except json.JSONDecodeError as e:
         print(f"Warning: Failed to parse CUSTOM_EVAL_DATASETS: {e}")
@@ -177,8 +229,8 @@ def generate_config(config_path):
                     'num_fewshot': b.get('shots', 0) if supports_fewshot else 0,
                 }
 
-                if model_max_tokens:
-                    benchmark['max_tokens'] = int(model_max_tokens)
+                # Apply generation params to benchmark
+                apply_generation_params(benchmark, gen_params)
 
                 limit = b.get('limit')
                 if limit:
@@ -208,7 +260,7 @@ def generate_config(config_path):
                         dataset_path = f"lakefs://{dataset_repo}/{dataset_ref}"
                         benchmark['path'] = dataset_path
                         benchmark['dataset_hub'] = 'local'
-                        benchmark['subset'] = dataset_subset  # NEW
+                        benchmark['subset'] = dataset_subset
                         print(f"Using custom dataset for {benchmark_name}: {dataset_path} (subset: {dataset_subset})")
 
                 benchmark_list.append(benchmark)
@@ -381,8 +433,11 @@ def generate_config(config_path):
     if not main_target.get('tokenizer'):
         main_target.pop('tokenizer', None)
 
-
     config['targets'].append(main_target)
+
+    # Log generation params if any
+    if gen_params:
+        print(f"Generation parameters applied: {gen_params}")
 
     # Write config
     with open(config_path, 'w') as f:
@@ -390,8 +445,7 @@ def generate_config(config_path):
 
     print(f"\nGenerated config at {config_path}:")
     print("-" * 40)
-    with open(config_path, 'r') as f:
-        print(f.read())
+    print(yaml.dump(obfuscate_config(config), default_flow_style=False, sort_keys=False))
     print("-" * 40)
 
 
