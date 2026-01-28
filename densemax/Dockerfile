@@ -67,7 +67,7 @@ RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.
     tar xz -C /usr/local/bin --strip-components=1 docker/docker
 
 # Add surogate-eval
-ARG SUROGATE_CACHE_BUST=18
+ARG SUROGATE_CACHE_BUST=20
 RUN uv pip install "torch==2.9.0+cu129" "torchvision==0.24.0+cu129" "torchaudio==2.9.0+cu129" --index-url https://download.pytorch.org/whl/cu129 \
     && uv pip install "git+https://github.com/invergent-ai/surogate_eval.git@main#egg=surogate-eval[security,vision,rag]"
 
