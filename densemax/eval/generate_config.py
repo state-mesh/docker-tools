@@ -23,6 +23,42 @@ def sanitize_json(json_str):
     return json_str
 
 
+def get_generation_params():
+    """Get generation parameters from environment variables."""
+    params = {}
+
+    model_temperature = os.environ.get('MODEL_TEMPERATURE', '')
+    model_top_p = os.environ.get('MODEL_TOP_P', '')
+    model_top_k = os.environ.get('MODEL_TOP_K', '')
+    model_min_p = os.environ.get('MODEL_MIN_P', '')
+    model_presence_penalty = os.environ.get('MODEL_PRESENCE_PENALTY', '')
+    model_max_tokens = os.environ.get('MODEL_MAX_TOKENS', '')
+    model_enable_thinking = os.environ.get('MODEL_ENABLE_THINKING', '')
+
+    if model_temperature:
+        params['temperature'] = float(model_temperature)
+    if model_top_p:
+        params['top_p'] = float(model_top_p)
+    if model_top_k:
+        params['top_k'] = int(model_top_k)
+    if model_min_p:
+        params['min_p'] = float(model_min_p)
+    if model_presence_penalty:
+        params['presence_penalty'] = float(model_presence_penalty)
+    if model_max_tokens:
+        params['max_tokens'] = int(model_max_tokens)
+    if model_enable_thinking:
+        params['enable_thinking'] = model_enable_thinking.lower() == 'true'
+
+    return params
+
+
+def apply_generation_params(config_dict, gen_params):
+    """Apply generation parameters to a config dict."""
+    for key, value in gen_params.items():
+        config_dict[key] = value
+
+
 def generate_config(config_path):
     job_name = os.environ.get('JOB_NAME', 'DenseMAX Evaluation')
     job_description = os.environ.get('JOB_DESCRIPTION', 'Auto-generated evaluation config')
@@ -41,13 +77,8 @@ def generate_config(config_path):
     language = os.environ.get('LANGUAGE', 'en')
     model_tokenizer = os.environ.get('MODEL_TOKENIZER', '')
 
-    # Generation parameters
-    model_temperature = os.environ.get('MODEL_TEMPERATURE', '')
-    model_top_p = os.environ.get('MODEL_TOP_P', '')
-    model_top_k = os.environ.get('MODEL_TOP_K', '')
-    model_min_p = os.environ.get('MODEL_MIN_P', '')
-    model_presence_penalty = os.environ.get('MODEL_PRESENCE_PENALTY', '')
-    model_enable_thinking = os.environ.get('MODEL_ENABLE_THINKING', '')
+    # Get generation parameters
+    gen_params = get_generation_params()
 
     # Judge model config
     judge_model = os.environ.get('JUDGE_MODEL', '')
@@ -116,19 +147,8 @@ def generate_config(config_path):
         'evaluations': [],
     }
 
-
-    if model_temperature:
-        main_target['temperature'] = float(model_temperature)
-    if model_top_p:
-        main_target['top_p'] = float(model_top_p)
-    if model_top_k:
-        main_target['top_k'] = int(model_top_k)
-    if model_min_p:
-        main_target['min_p'] = float(model_min_p)
-    if model_presence_penalty:
-        main_target['presence_penalty'] = float(model_presence_penalty)
-    if model_enable_thinking:
-        main_target['enable_thinking'] = model_enable_thinking.lower() == 'true'
+    # Apply generation params to main target
+    apply_generation_params(main_target, gen_params)
 
     # Parse custom eval datasets
     try:
@@ -156,6 +176,9 @@ def generate_config(config_path):
                     'answer': columns.get('answer', 'answer'),
                 },
             }
+
+            # Apply generation params to benchmark
+            apply_generation_params(benchmark_config, gen_params)
 
             # Optional columns - only for hybrid mode
             if columns.get('eval_type'):
@@ -205,6 +228,9 @@ def generate_config(config_path):
                     'name': benchmark_name,
                     'num_fewshot': b.get('shots', 0) if supports_fewshot else 0,
                 }
+
+                # Apply generation params to benchmark
+                apply_generation_params(benchmark, gen_params)
 
                 limit = b.get('limit')
                 if limit:
@@ -409,6 +435,10 @@ def generate_config(config_path):
 
     config['targets'].append(main_target)
 
+    # Log generation params if any
+    if gen_params:
+        print(f"Generation parameters applied: {gen_params}")
+
     # Write config
     with open(config_path, 'w') as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
@@ -417,9 +447,6 @@ def generate_config(config_path):
     print("-" * 40)
     print(yaml.dump(obfuscate_config(config), default_flow_style=False, sort_keys=False))
     print("-" * 40)
-
-
-
 
 
 if __name__ == '__main__':
