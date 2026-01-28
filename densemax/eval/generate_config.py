@@ -3,6 +3,14 @@ import json
 import os
 import yaml
 
+def obfuscate_config(config):
+    """Deep copy config with API keys obfuscated."""
+    import copy
+    result = copy.deepcopy(config)
+    for target in result.get('targets', []):
+        if 'api_key' in target:
+            target['api_key'] = '***REDACTED***'
+    return result
 
 def sanitize_json(json_str):
     """Remove trailing extra braces if brace count is unbalanced."""
@@ -32,7 +40,14 @@ def generate_config(config_path):
     model_endpoint = os.environ.get('MODEL_ENDPOINT', '')
     language = os.environ.get('LANGUAGE', 'en')
     model_tokenizer = os.environ.get('MODEL_TOKENIZER', '')
-    model_max_tokens = os.environ.get('MODEL_MAX_TOKENS', '')
+
+    # Generation parameters
+    model_temperature = os.environ.get('MODEL_TEMPERATURE', '')
+    model_top_p = os.environ.get('MODEL_TOP_P', '')
+    model_top_k = os.environ.get('MODEL_TOP_K', '')
+    model_min_p = os.environ.get('MODEL_MIN_P', '')
+    model_presence_penalty = os.environ.get('MODEL_PRESENCE_PENALTY', '')
+    model_enable_thinking = os.environ.get('MODEL_ENABLE_THINKING', '')
 
     # Judge model config
     judge_model = os.environ.get('JUDGE_MODEL', '')
@@ -101,6 +116,20 @@ def generate_config(config_path):
         'evaluations': [],
     }
 
+
+    if model_temperature:
+        main_target['temperature'] = float(model_temperature)
+    if model_top_p:
+        main_target['top_p'] = float(model_top_p)
+    if model_top_k:
+        main_target['top_k'] = int(model_top_k)
+    if model_min_p:
+        main_target['min_p'] = float(model_min_p)
+    if model_presence_penalty:
+        main_target['presence_penalty'] = float(model_presence_penalty)
+    if model_enable_thinking:
+        main_target['enable_thinking'] = model_enable_thinking.lower() == 'true'
+
     # Parse custom eval datasets
     try:
         custom_eval_datasets = json.loads(custom_eval_datasets_json)
@@ -127,9 +156,6 @@ def generate_config(config_path):
                     'answer': columns.get('answer', 'answer'),
                 },
             }
-
-            if model_max_tokens:
-                benchmark_config['max_tokens'] = int(model_max_tokens)
 
             # Optional columns - only for hybrid mode
             if columns.get('eval_type'):
@@ -179,9 +205,6 @@ def generate_config(config_path):
                     'name': benchmark_name,
                     'num_fewshot': b.get('shots', 0) if supports_fewshot else 0,
                 }
-
-                if model_max_tokens:
-                    benchmark['max_tokens'] = int(model_max_tokens)
 
                 limit = b.get('limit')
                 if limit:
@@ -392,9 +415,11 @@ def generate_config(config_path):
 
     print(f"\nGenerated config at {config_path}:")
     print("-" * 40)
-    with open(config_path, 'r') as f:
-        print(f.read())
+    print(yaml.dump(obfuscate_config(config), default_flow_style=False, sort_keys=False))
     print("-" * 40)
+
+
+
 
 
 if __name__ == '__main__':
