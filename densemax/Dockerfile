@@ -58,6 +58,14 @@ ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/bitsandbytes-0.48.
 RUN uv pip uninstall bitsandbytes \
     && uv pip install /opt/bitsandbytes-0.48.1+invergent-cp312-cp312-linux_x86_64.whl
 
+# SkyPilot
+RUN mkdir -p /opt/densemax/sky
+WORKDIR /opt/densemax/sky
+RUN uv venv --seed --python 3.12
+RUN source .venv/bin/activate
+RUN uv pip install skypilot
+RUN uv pip install "skypilot[kubernetes,aws,gcp,oci,runpod]"
+
 ## Evaluation
 WORKDIR /opt/densemax/eval
 RUN uv venv --python 3.12
@@ -94,16 +102,21 @@ RUN rm -f /opt/*.whl \
 RUN mkdir /scripts
 
 COPY job-entry.sh /usr/bin/job-entry
+COPY job-entry-sky.sh /usr/bin/job-entry-sky
 COPY train/train.sh /usr/bin/train
 COPY train/train-axolotl.sh /usr/bin/train-axolotl
+COPY train/sky/train-sky.sh /usr/bin/train-sky
+COPY train/sky/train-sky-axolotl.sh /usr/bin/train-sky-axolotl
+COPY train/launch-sky.sh /usr/bin/launch-sky
 COPY quant/quantization.py /scripts
 COPY quant/quantize.sh /usr/bin/quantize
 COPY eval/run_eval.sh /usr/bin/eval
 COPY eval/generate_config.py /opt/densemax/eval/generate_config.py
 
 
-RUN chmod a+x /usr/bin/job-entry \
+RUN chmod a+x /usr/bin/job-entry* \
     && chmod a+x /usr/bin/train* \
+    && chmod a+x /usr/bin/launch-sky \
     && chmod a+x /usr/bin/quantize \
     && chmod a+x /usr/bin/eval
 
