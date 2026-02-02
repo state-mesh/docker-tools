@@ -2,6 +2,8 @@
 
 set -e
 
+mkdir -p /opt/work
+
 cd /opt/densemax/train-axolotl
 
 export PYTHONUNBUFFERED=1

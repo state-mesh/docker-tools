@@ -33,7 +33,7 @@ IFS=',' read -ra DATASETS <<< "$DATASET"
 #  lakectl fs download -r "lakefs://${ds}/" "$target_dir"
 #done
 
-sky launch --no-cleanup -yc $JOB_ID-cluster $CONFIG
+sky launch -yc $JOB_ID-cluster $CONFIG
 
 tail -f > /dev/null
 #RSYNC ???

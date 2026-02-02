@@ -112,17 +112,22 @@ COPY quant/quantize.sh /usr/bin/quantize
 COPY eval/run_eval.sh /usr/bin/eval
 COPY eval/generate_config.py /opt/densemax/eval/generate_config.py
 
+RUN mkdir -p /root/sky_templates/ray
+COPY train/sky/templates/start_cluster /root/sky_templates/ray/start_cluster
+COPY train/sky/templates/stop_cluster /root/sky_templates/ray/stop_cluster
 
 RUN chmod a+x /usr/bin/job-entry* \
     && chmod a+x /usr/bin/train* \
     && chmod a+x /usr/bin/launch-sky \
     && chmod a+x /usr/bin/quantize \
-    && chmod a+x /usr/bin/eval
+    && chmod a+x /usr/bin/eval \
+    && chmod a+x /root/sky_templates/ray/start_cluster \
+    && chmod a+x /root/sky_templates/ray/stop_cluster
 
 #https://github.com/NVIDIA/nccl/issues/1838
 ENV NCCL_CUMEM_HOST_ENABLE=0
 ENV TUNE_MAX_PENDING_TRIALS_PG=32
-ENV RAY_RUNTIME_ENV_HOOK=ray._private.runtime_env.uv_runtime_env_hook.hook
+#ENV RAY_RUNTIME_ENV_HOOK=ray._private.runtime_env.uv_runtime_env_hook.hook
 
 ENV RCLONE_CONFIG_LAKEFS_TYPE=s3
 ENV RCLONE_CONFIG_LAKEFS_PROVIDER=Other
