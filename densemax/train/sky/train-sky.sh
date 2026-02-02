@@ -3,6 +3,7 @@
 set -e
 
 cd /opt/densemax/train
+cp ~/sky_workdir/* $WORK_DIR/
 
 export PYTHONUNBUFFERED=1
 CONFIG=$WORK_DIR/config_solved.yaml

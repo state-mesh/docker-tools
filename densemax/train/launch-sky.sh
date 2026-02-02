@@ -17,21 +17,22 @@ SOURCE_REPO="${BASE_MODEL%%/*}"
 [[ "${LORA:-false}" == "true" ]] && [[ "${MERGE_LORA:-false}" != "true" ]] && LORA_ADAPTER=true || LORA_ADAPTER=false
 IFS=',' read -ra DATASETS <<< "$DATASET"
 
-
 # Cloud / k8s login forEach infra:
+mkdir -p ~/.runpod/
+echo "[default]\napi_key = \"rpa_5CS79KNGQKU6VMY1A47JFPC3GS9DMIMB5SWY1P2Qq9knjy\"" > ~/.runpod/config.toml
 
-#echo "Downloading model ${BASE_MODEL}"
-#lakectl fs download -r lakefs://$BASE_MODEL/ $WORK_DIR/model
-#
-#for ds in "${DATASETS[@]}"; do
-#  ds_b64="$(printf '%s' "$ds" | base64 -w 0 | tr '+/' '-_' | tr -d '=')"
-#  target_dir="$WORK_DIR/dataset_${ds_b64}"
-#
-#  echo "Downloading dataset ${ds} -> ${target_dir}"
-#  mkdir -p "$target_dir"
-#
-#  lakectl fs download -r "lakefs://${ds}/" "$target_dir"
-#done
+echo "Downloading model ${BASE_MODEL}"
+lakectl fs download -r lakefs://$BASE_MODEL/ $WORK_DIR/model
+
+for ds in "${DATASETS[@]}"; do
+  ds_b64="$(printf '%s' "$ds" | base64 -w 0 | tr '+/' '-_' | tr -d '=')"
+  target_dir="$WORK_DIR/dataset_${ds_b64}"
+
+  echo "Downloading dataset ${ds} -> ${target_dir}"
+  mkdir -p "$target_dir"
+
+  lakectl fs download -r "lakefs://${ds}/" "$target_dir"
+done
 
 sky launch -yc $JOB_ID-cluster $CONFIG
 

@@ -3,6 +3,7 @@
 set -e
 
 mkdir -p /opt/work
+cp ~/sky_workdir/* $WORK_DIR/
 
 cd /opt/densemax/train-axolotl
 
