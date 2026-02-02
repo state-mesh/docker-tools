@@ -98,6 +98,7 @@ def generate_config(config_path):
     security_tests_json = os.environ.get('SECURITY_TESTS', '[]')
     red_teaming_config_json = os.environ.get('RED_TEAMING_CONFIG', '{}')
     custom_eval_datasets_json = os.environ.get('CUSTOM_EVAL_DATASETS', '[]')
+    deployed_model_api = os.environ.get('DEPLOYED_MODEL_API', 'sk-no-key-required')
 
     # Add judge model target if configured
     if judge_model:
@@ -131,6 +132,8 @@ def generate_config(config_path):
         config['targets'].append(simulator_target)
         print(f"Added simulator target: {simulator_model} (provider: {simulator_model_provider})")
 
+
+
     # Main target - model under test
     main_target = {
         'name': deployed_model_name or 'model-under-test',
@@ -138,7 +141,7 @@ def generate_config(config_path):
         'provider': 'openai',
         'model': deployed_model_name,
         'base_url': model_endpoint,
-        'api_key': 'sk-no-key-required',
+        'api_key': deployed_model_api,
         'tokenizer': model_tokenizer if model_tokenizer else None,
         'infrastructure': {
             'backend': 'local',
