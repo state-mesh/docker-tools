@@ -4,20 +4,21 @@ set -e
 export PYTHONUNBUFFERED=1
 
 cd /opt/densemax/sky
+source .venv/bin/activate
 
 echo "Preparing sky config file"
 CONFIG=$WORK_DIR/config.yaml
 echo "$SKY_CONFIG" > $CONFIG
 
+mkdir -p ~/.kube
+echo "$KUBE_CONFIG" > ~/.kube/config
+
 SOURCE_REPO="${BASE_MODEL%%/*}"
 [[ "${LORA:-false}" == "true" ]] && [[ "${MERGE_LORA:-false}" != "true" ]] && LORA_ADAPTER=true || LORA_ADAPTER=false
 IFS=',' read -ra DATASETS <<< "$DATASET"
 
-sky api login
 
 # Cloud / k8s login forEach infra:
-
-sky show-gpus
 
 #echo "Downloading model ${BASE_MODEL}"
 #lakectl fs download -r lakefs://$BASE_MODEL/ $WORK_DIR/model
@@ -32,7 +33,7 @@ sky show-gpus
 #  lakectl fs download -r "lakefs://${ds}/" "$target_dir"
 #done
 
-sky launch -c $JOB_ID-cluster $CONFIG
+sky launch --no-cleanup -yc $JOB_ID-cluster $CONFIG
 
 tail -f > /dev/null
 #RSYNC ???

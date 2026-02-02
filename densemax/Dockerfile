@@ -62,7 +62,6 @@ RUN uv pip uninstall bitsandbytes \
 RUN mkdir -p /opt/densemax/sky
 WORKDIR /opt/densemax/sky
 RUN uv venv --seed --python 3.12
-RUN source .venv/bin/activate
 RUN uv pip install skypilot
 RUN uv pip install "skypilot[kubernetes,aws,gcp,oci,runpod]"
 
