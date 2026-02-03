@@ -66,7 +66,7 @@ RUN curl -o /usr/bin/kubectl https://densemax.s3.eu-central-1.amazonaws.com/kube
 RUN mkdir -p /opt/densemax/sky
 WORKDIR /opt/densemax/sky
 RUN uv venv --seed --python 3.12
-RUN uv pip install skypilot
+RUN uv pip install skypilot aim
 RUN uv pip install "skypilot[kubernetes,aws,gcp,oci,runpod]"
 
 ## Evaluation
@@ -116,6 +116,8 @@ COPY quant/quantize.sh /usr/bin/quantize
 COPY eval/run_eval.sh /usr/bin/eval
 COPY eval/generate_config.py /opt/densemax/eval/generate_config.py
 
+COPY train/util/aim_copy_runs.py /usr/bin/aim_copy_runs.py
+
 RUN mkdir -p /root/sky_templates/ray
 COPY train/sky/templates/start_cluster /root/sky_templates/ray/start_cluster
 COPY train/sky/templates/stop_cluster /root/sky_templates/ray/stop_cluster
@@ -125,6 +127,7 @@ RUN chmod a+x /usr/bin/job-entry* \
     && chmod a+x /usr/bin/launch-sky \
     && chmod a+x /usr/bin/quantize \
     && chmod a+x /usr/bin/eval \
+    && chmod a+x /usr/bin/aim_copy_runs.py \
     && chmod a+x /root/sky_templates/ray/start_cluster \
     && chmod a+x /root/sky_templates/ray/stop_cluster
 

@@ -43,10 +43,12 @@ done
 sky launch -y -c "$CLUSTER" "$CONFIG"
 
 # Sync AIM metrics periodically
+mkdir -p /tmp/aim
 (
   while true; do
     # Pull remote -> local
-    rsync -Pavz "${CLUSTER}:/opt/aim/" "/opt/aim/" || true
+    rsync -Pavz "${CLUSTER}:/opt/aim/" "/tmp/aim/" || true
+    python aim_copy_runs.py --src "/tmp/aim/" --dst "/opt/aim/" > /dev/null 2>&1 || true
     sleep 5
   done
 ) &
@@ -124,3 +126,6 @@ fi
 echo "Commiting lakefs branch"
 lakectl commit lakefs://$SOURCE_REPO/$BRANCH --message "Fine-tuning of $BASE_MODEL" \
 --meta lora_adapter="$LORA_ADAPTER" --meta source_model="$BASE_MODEL"
+
+echo "Shutting down cluster"
+sky down -y $CLUSTER
