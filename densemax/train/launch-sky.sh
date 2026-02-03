@@ -96,13 +96,13 @@ lakectl branch create lakefs://$SOURCE_REPO/$BRANCH -s lakefs://$BASE_MODEL
 
 if [[ "$LORA_ADAPTER" == "true" ]]; then
   echo "Uploading LoRA adapter"
-  if [[ "$USE_AXOLOTL_TRAINING_LIBRARY" == "true"]]; then
+  if [[ "$USE_AXOLOTL_TRAINING_LIBRARY" == "true" ]]; then
     lakectl fs upload -rs $WORK_DIR/outputs/lora/ lakefs://$SOURCE_REPO/$BRANCH/
   else
     lakectl fs upload -rs $WORK_DIR/outputs/ lakefs://$SOURCE_REPO/$BRANCH/
   fi
 else
-  if [[ "$USE_AXOLOTL_TRAINING_LIBRARY" == "true"]]; then
+  if [[ "$USE_AXOLOTL_TRAINING_LIBRARY" == "true" ]]; then
       if [[ "${MERGE_LORA:-false}" == "true" ]]; then
         echo "Merging LoRA into the base model"
         .venv/bin/axolotl merge-lora $CONFIG --lora-model-dir=$WORK_DIR/outputs/lora/ \
