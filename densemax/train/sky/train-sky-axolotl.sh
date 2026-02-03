@@ -1,10 +1,7 @@
 #!/bin/bash
 
 set -e
-
-mkdir -p /opt/work
-cp ~/sky_workdir/* $WORK_DIR/
-
+mkdir -p /opt/aim
 cd /opt/densemax/train-axolotl
 
 export PYTHONUNBUFFERED=1
