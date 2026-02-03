@@ -230,6 +230,7 @@ def generate_config(config_path):
                 benchmark = {
                     'name': benchmark_name,
                     'num_fewshot': b.get('shots', 0) if supports_fewshot else 0,
+                    'dataset_hub': b.get('datasetHub', 'huggingface'),
                 }
 
                 # Apply generation params to benchmark
