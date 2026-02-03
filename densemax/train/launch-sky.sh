@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -eo pipefail
 export PYTHONUNBUFFERED=1
 
 cd /opt/densemax/sky
@@ -10,6 +10,7 @@ echo "Preparing sky config file"
 CONFIG=$WORK_DIR/config.yaml
 echo "$SKY_CONFIG" > $CONFIG
 
+CLUSTER="${JOB_ID}-cluster"
 SOURCE_REPO="${BASE_MODEL%%/*}"
 [[ "${LORA:-false}" == "true" ]] && [[ "${MERGE_LORA:-false}" != "true" ]] && LORA_ADAPTER=true || LORA_ADAPTER=false
 IFS=',' read -ra DATASETS <<< "$DATASET"
@@ -38,11 +39,57 @@ for ds in "${DATASETS[@]}"; do
   lakectl fs download -r "lakefs://${ds}/" "$target_dir"
 done
 
-sky launch -yc -d $JOB_ID-cluster $CONFIG
-sky logs --autostop --follow --tail 1000 $JOB_ID-cluster
+# Launch training in the sky
+sky launch -y -c "$CLUSTER" "$CONFIG"
 
-tail -f > /dev/null
-rsync -Pavz /opt/work/outputs /opt/work/outputs/
+# Sync AIM metrics periodically
+(
+  while true; do
+    # Pull remote -> local
+    rsync -Pavz "${CLUSTER}:/opt/aim/" "/opt/aim/" || true
+    sleep 5
+  done
+) &
+AIM_SYNC_PID=$!
+
+# Stream sky logs
+sky logs "$CLUSTER" --follow --tail 1000 &
+LOG_FOLLOW_PID=$!
+
+JOB_OK=0
+while true; do
+  # --status: return 0 if succeeded; otherwise non-zero
+  if sky logs "$CLUSTER" --status > /dev/null 2>&1; then
+    JOB_OK=1
+    break
+  fi
+
+  rc=$?
+  # From docs: 100 failed, 101 not finished, 102 not found, 103 cancelled.
+  if [[ "$rc" -eq 100 || "$rc" -eq 102 || "$rc" -eq 103 ]]; then
+    JOB_OK=0
+    break
+  fi
+
+  # rc=101 (not finished)
+  sleep 5
+done
+
+# Stop background log tail + aim sync
+kill "$LOG_FOLLOW_PID" > /dev/null 2>&1 || true
+wait "$LOG_FOLLOW_PID" > /dev/null 2>&1 || true
+
+kill "$AIM_SYNC_PID" > /dev/null 2>&1 || true
+wait "$AIM_SYNC_PID" > /dev/null 2>&1 || true
+
+if [[ "$JOB_OK" -ne 1 ]]; then
+  echo "Job did not succeed (see logs above). Skipping final rsync."
+  exit 1
+fi
+
+# Final rsync after job success (remote -> local)
+mkdir -p $WORK_DIR/outputs
+rsync -Pavz "${CLUSTER}:${WORK_DIR}/outputs/" "${WORK_DIR}/outputs/"
 
 echo "Preparing lakefs branch"
 lakectl branch create lakefs://$SOURCE_REPO/$BRANCH -s lakefs://$BASE_MODEL
