@@ -145,6 +145,8 @@ def main() -> int:
     args = ap.parse_args()
 
     src = Repo(args.src)
+    dst = Repo(args.dst)
+
     experiment, exp_runs = latest_experiment_and_runs(src)
     if experiment is None or not exp_runs:
         print("[replay] no runs/experiments found in source")
@@ -153,6 +155,8 @@ def main() -> int:
     print(f"[replay] latest experiment: {experiment}")
     print(f"[replay] src runs in latest experiment: {len(exp_runs)}")
     print("[replay] src hashes:", [r.hash for r in exp_runs])
+
+    delete_dst_experiment_runs(dst, experiment)
 
     for r in exp_runs:
         replay_src_run_to_new_dst_run(
