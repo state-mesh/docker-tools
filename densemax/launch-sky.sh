@@ -3,6 +3,12 @@
 set -eo pipefail
 export PYTHONUNBUFFERED=1
 
+echo "Starting vllm controller"
+cd /opt/densemax/serve
+source .venv/bin/activate
+echo "TP: ${VLLM_TP}"
+nohup uvicorn vllm-controller:app --host 0.0.0.0 --port 9000 --reload --workers 1 > /var/log/vllm-controller.log 2>&1 &
+
 cd /opt/densemax/sky
 source .venv/bin/activate
 
@@ -48,7 +54,7 @@ mkdir -p /tmp/aim
   while true; do
     # Pull remote -> local
     rsync -Pavz "${CLUSTER}:/opt/aim/" "/tmp/aim/" || true
-    python aim_copy_runs.py --src "/tmp/aim/" --dst "/opt/aim/" > /dev/null 2>&1 || true
+    python /usr/bin/aim_copy_runs.py --src "/tmp/aim/" --dst "/opt/aim/" > /dev/null 2>&1 || true
     sleep 5
   done
 ) &

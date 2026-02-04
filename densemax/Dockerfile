@@ -106,11 +106,11 @@ RUN mkdir /scripts
 
 COPY job-entry.sh /usr/bin/job-entry
 COPY job-entry-sky.sh /usr/bin/job-entry-sky
+COPY launch-sky.sh /usr/bin/launch-sky
 COPY train/train.sh /usr/bin/train
 COPY train/train-axolotl.sh /usr/bin/train-axolotl
 COPY train/sky/train-sky.sh /usr/bin/train-sky
 COPY train/sky/train-sky-axolotl.sh /usr/bin/train-sky-axolotl
-COPY train/launch-sky.sh /usr/bin/launch-sky
 COPY quant/quantization.py /scripts
 COPY quant/quantize.sh /usr/bin/quantize
 COPY eval/run_eval.sh /usr/bin/eval
