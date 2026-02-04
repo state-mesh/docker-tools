@@ -52,9 +52,8 @@ sky launch -dy -c "$CLUSTER" "$CONFIG"
 mkdir -p /tmp/aim
 (
   while true; do
-    rsync -Pavz "${CLUSTER}:/opt/aim/" "/tmp/aim/" > /dev/null 2>&1 || true
-    yes | aim storage --repo /tmp/aim/ reindex > /dev/null 2>&1 || true
-    python /usr/bin/aim_copy_runs.py --src "/tmp/aim/" --dst "/opt/aim/" > /dev/null 2>&1 || true
+    rsync -Pavz "${CLUSTER}:/opt/aim/" "/opt/aim/" > /dev/null 2>&1 || true
+    yes | aim storage --repo /opt/aim/ reindex > /dev/null 2>&1 || true
     sleep 5
   done
 ) &
