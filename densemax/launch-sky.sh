@@ -135,3 +135,6 @@ lakectl commit lakefs://$SOURCE_REPO/$BRANCH --message "Fine-tuning of $BASE_MOD
 
 echo "Shutting down cluster"
 sky down -y $CLUSTER
+
+# keep job pod for testing (it will be deleted by studio)
+tail -f > /dev/null
