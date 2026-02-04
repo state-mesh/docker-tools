@@ -46,14 +46,14 @@ for ds in "${DATASETS[@]}"; do
 done
 
 # Launch training in the sky
-sky launch -y -c "$CLUSTER" "$CONFIG"
+sky launch -dy -c "$CLUSTER" "$CONFIG"
 
 # Sync AIM metrics periodically
 mkdir -p /tmp/aim
 (
   while true; do
-    # Pull remote -> local
-    rsync -Pavz "${CLUSTER}:/opt/aim/" "/tmp/aim/" || true
+    rsync -Pavz "${CLUSTER}:/opt/aim/" "/tmp/aim/" > /dev/null 2>&1 || true
+    yes | aim storage --repo /tmp/aim/ reindex > /dev/null 2>&1 || true
     python /usr/bin/aim_copy_runs.py --src "/tmp/aim/" --dst "/opt/aim/" > /dev/null 2>&1 || true
     sleep 5
   done
