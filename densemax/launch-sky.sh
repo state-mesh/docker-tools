@@ -45,6 +45,8 @@ for ds in "${DATASETS[@]}"; do
   lakectl fs download -r "lakefs://${ds}/" "$target_dir"
 done
 
+rsync -Pavz /opt/aim/ "${CLUSTER}:/opt/aim/"
+
 # Launch training in the sky
 sky launch -dy -c "$CLUSTER" "$CONFIG"
 
@@ -53,7 +55,6 @@ mkdir -p /tmp/aim
 (
   while true; do
     rsync -Pavz "${CLUSTER}:/opt/aim/" "/tmp/aim/" > /dev/null 2>&1 || true
-    yes | aim storage --repo /tmp/aim/ reindex > /dev/null 2>&1 || true
     python /usr/bin/aim_copy_runs.py --src "/tmp/aim/" --dst "/opt/aim/" > /dev/null 2>&1 || true
     sleep 5
   done
