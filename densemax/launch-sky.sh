@@ -49,6 +49,9 @@ done
 export SKYPILOT_DISABLE_USAGE_COLLECTION=1
 sky launch -dy -c "$CLUSTER" "$CONFIG"
 
+python -c 'from aim import Repo; Repo("/tmp/aim", init=True)'
+rsync -Pavz --delete "/tmp/aim/" "${CLUSTER}:/opt/aim/"
+
 # Sync AIM metrics periodically
 aim_sync() {
   rsync -Pavz --delete "${CLUSTER}:/opt/aim/" "/tmp/aim/" > /dev/null 2>&1 || true
