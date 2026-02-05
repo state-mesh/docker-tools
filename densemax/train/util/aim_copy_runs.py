@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import sys
-import time
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Set
 from aim import Repo, Run
 
 
@@ -18,66 +16,20 @@ def ctx_to_dict(ctx: Any) -> Dict[str, Any]:
         return {}
 
 
-def run_time(run: Any) -> float:
-    """Return a sortable timestamp for a run."""
-    for attr in ("created_at", "start_time"):
-        v = getattr(run, attr, None)
-        if v is None:
-            continue
-
-        if isinstance(v, datetime):
-            return float(v.timestamp())
-
-        if isinstance(v, (int, float)):
-            return float(v)
-
-        if isinstance(v, str):
-            try:
-                return float(v)
-            except Exception:
-                return 0.0
-
-        if hasattr(v, "timestamp"):
-            try:
-                return float(v.timestamp())
-            except Exception:
-                pass
-
-    return 0.0
-
-
-def is_lock_error(e: Exception) -> bool:
-    msg = str(e).lower()
-    return ("lock" in msg) or ("locked" in msg)
-
-
-def retry(op_name: str, fn, tries: int = 120, sleep_s: float = 0.5):
-    last: Optional[Exception] = None
-    for i in range(1, tries + 1):
-        try:
-            return fn()
-        except Exception as e:
-            last = e
-            if is_lock_error(e):
-                print(f"[replay] {op_name}: locked, retry {i}/{tries} in {sleep_s}s")
-                time.sleep(sleep_s)
-                continue
-            raise
-    raise RuntimeError(f"{op_name} failed after {tries} retries: {last}")
-
-
-def latest_experiment_and_runs(src: Repo) -> Tuple[Optional[str], List[Any]]:
+def single_experiment_and_runs(src: Repo) -> Tuple[Optional[str], List[Any]]:
     runs: List[Any] = list(src.iter_runs())
     if not runs:
         return None, []
 
-    runs.sort(key=run_time)
-    latest_run = runs[-1]
-    latest_exp = getattr(latest_run, "experiment", None)
+    experiments: Set[Optional[str]] = {getattr(r, "experiment", None) for r in runs}
 
-    exp_runs = [r for r in runs if getattr(r, "experiment", None) == latest_exp]
-    exp_runs.sort(key=run_time)
-    return latest_exp, exp_runs
+    if len(experiments) > 1:
+        raise RuntimeError(
+            f"source repo contains multiple experiments ({len(experiments)}): {sorted(experiments)}"
+        )
+
+    (experiment,) = tuple(experiments)
+    return experiment, runs
 
 
 def delete_dst_experiment_runs(dst: Repo, experiment: Optional[str]):
@@ -87,7 +39,7 @@ def delete_dst_experiment_runs(dst: Repo, experiment: Optional[str]):
     print(f"[replay] dst runs to delete for experiment={experiment}: {len(to_delete)}")
     for h in to_delete:
         print(f"[replay] deleting dst run {h}")
-        retry(f"delete_run({h})", lambda h=h: dst.delete_run(h))
+        dst.delete_run(h)
 
 
 def replay_src_run_to_new_dst_run(
@@ -98,11 +50,8 @@ def replay_src_run_to_new_dst_run(
 ):
     print(f"[replay] creating new dst run for src_hash={src_run_hash} experiment={experiment}")
 
-    # Create NEW run (new hash) - do not use run_hash=..., because that tries to open existing.
-    dst_run = retry(
-        f"create_run(experiment={experiment})",
-        lambda: Run(repo=dst_repo_path, experiment=experiment),
-    )
+    # Create NEW run (new hash)
+    dst_run = Run(repo=dst_repo_path, experiment=experiment)
 
     # Link back to source run hash for traceability
     try:
@@ -135,7 +84,7 @@ def replay_src_run_to_new_dst_run(
             total_points += n
 
     print(f"[replay] replayed metrics={metric_count} total_points={total_points} for src_hash={src_run_hash}")
-    retry("close_run()", dst_run.close)
+    dst_run.close()
 
 
 def main() -> int:
@@ -147,18 +96,18 @@ def main() -> int:
     src = Repo(args.src)
     dst = Repo(args.dst)
 
-    experiment, exp_runs = latest_experiment_and_runs(src)
-    if experiment is None or not exp_runs:
+    experiment, runs = single_experiment_and_runs(src)
+    if not runs:
         print("[replay] no runs/experiments found in source")
         return 0
 
-    print(f"[replay] latest experiment: {experiment}")
-    print(f"[replay] src runs in latest experiment: {len(exp_runs)}")
-    print("[replay] src hashes:", [r.hash for r in exp_runs])
+    print(f"[replay] source experiment: {experiment}")
+    print(f"[replay] src runs in experiment: {len(runs)}")
+    print("[replay] src hashes:", [r.hash for r in runs])
 
     delete_dst_experiment_runs(dst, experiment)
 
-    for r in exp_runs:
+    for r in runs:
         replay_src_run_to_new_dst_run(
             src=src,
             dst_repo_path=args.dst,
@@ -166,7 +115,7 @@ def main() -> int:
             src_run_hash=r.hash,
         )
 
-    print("[replay] done (latest experiment replayed into dst)")
+    print("[replay] done (single experiment replayed into dst)")
     return 0
 
 

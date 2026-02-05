@@ -59,7 +59,7 @@ RUN uv pip uninstall bitsandbytes \
     && uv pip install /opt/bitsandbytes-0.48.1+invergent-cp312-cp312-linux_x86_64.whl
 
 # SkyPilot
-RUN apt-get install -y socat netcat-openbsd rsync
+RUN apt-get install -y socat netcat-openbsd rsync wget gcc patch pciutils openssh-server
 RUN curl -o /usr/bin/kubectl https://densemax.s3.eu-central-1.amazonaws.com/kubectl \
     && chmod +x /usr/bin/kubectl
 

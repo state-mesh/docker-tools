@@ -50,12 +50,16 @@ export SKYPILOT_DISABLE_USAGE_COLLECTION=1
 sky launch -dy -c "$CLUSTER" "$CONFIG"
 
 # Sync AIM metrics periodically
+aim_sync() {
+  rsync -Pavz --delete "${CLUSTER}:/opt/aim/" "/tmp/aim/" > /dev/null 2>&1 || true
+  yes | aim storage --repo /tmp/aim/ reindex > /dev/null 2>&1 || true
+  python /usr/bin/aim_copy_runs.py --src "/tmp/aim/" --dst "/opt/aim/" > /dev/null 2>&1 || true
+}
+
 mkdir -p /tmp/aim
 (
   while true; do
-    rsync -Pavz "${CLUSTER}:/opt/aim/" "/tmp/aim/" > /dev/null 2>&1 || true
-    yes | aim storage --repo /tmp/aim/ reindex > /dev/null 2>&1 || true
-    python /usr/bin/aim_copy_runs.py --src "/tmp/aim/" --dst "/opt/aim/" > /dev/null 2>&1 || true
+    aim_sync
     sleep 5
   done
 ) &
@@ -99,6 +103,7 @@ fi
 # Final rsync after job success (remote -> local)
 mkdir -p $WORK_DIR/outputs
 rsync -Pavz "${CLUSTER}:${WORK_DIR}/outputs/" "${WORK_DIR}/outputs/"
+aim_sync
 
 echo "Preparing lakefs branch"
 lakectl branch create lakefs://$SOURCE_REPO/$BRANCH -s lakefs://$BASE_MODEL

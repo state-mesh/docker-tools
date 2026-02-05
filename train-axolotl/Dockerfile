@@ -42,10 +42,11 @@ RUN git clone --depth=1 https://github.com/invergent-ai/axolotl.git /opt/densema
     && uv pip install --no-build-isolation -e /opt/densemax/train-axolotl/axolotl[deepspeed,flash-attn,ring-flash-attn,optimizers,ray]
 
 # Custom bitsandbytes wheel
-ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/bitsandbytes-0.48.1%2Binvergent-cp312-cp312-linux_x86_64.whl /tmp/bnb.whl
-RUN uv pip uninstall -y bitsandbytes || true \
-    && uv pip install /tmp/bnb.whl \
-    && rm -f /tmp/bnb.whl
+ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/bitsandbytes-0.48.1%2Binvergent-cp312-cp312-linux_x86_64.whl /tmp/bitsandbytes-0.48.1+invergent-cp312-cp312-linux_x86_64.whl
+RUN uv pip uninstall bitsandbytes || true \
+    && uv pip install /tmp/bitsandbytes-0.48.1+invergent-cp312-cp312-linux_x86_64.whl \
+    && rm -f /tmp/bitsandbytes-0.48.1+invergent-cp312-cp312-linux_x86_64.whl
+
 
 RUN /opt/densemax/train-axolotl/.venv/bin/axolotl --help >/dev/null
 
