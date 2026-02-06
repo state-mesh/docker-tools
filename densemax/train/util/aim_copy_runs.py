@@ -8,13 +8,16 @@ from aim import Repo, Run
 def ctx_to_dict(ctx: Any) -> Dict[str, Any]:
     if ctx is None:
         return {}
+    # Aim Context object
+    to_dict = getattr(ctx, "to_dict", None)
+    if callable(to_dict):
+        return to_dict()
     if isinstance(ctx, dict):
         return ctx
     try:
         return dict(ctx)
     except Exception:
         return {}
-
 
 def single_experiment_and_runs(src: Repo) -> Tuple[Optional[str], List[Any]]:
     runs: List[Any] = list(src.iter_runs())
@@ -69,13 +72,13 @@ def replay_src_run_to_new_dst_run(
         for metric in run_metrics_collection:
             metric_count += 1
             name = metric.name
-            context = ctx_to_dict(metric.context)
-
-            steps, vals = metric.values.sparse_numpy()
+            steps, columns = metric.data.numpy()   # steps: np.ndarray
+            vals = columns[0]                      # 'val' column
             n = len(vals)
             if n == 0:
                 continue
 
+            context = ctx_to_dict(metric.context)
             print(f"[replay] metric={name} ctx={context} points={n}")
 
             for step, val in zip(steps, vals):
