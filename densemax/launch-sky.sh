@@ -145,5 +145,9 @@ lakectl commit lakefs://$SOURCE_REPO/$BRANCH --message "Fine-tuning of $BASE_MOD
 echo "Shutting down cluster"
 sky down -y $CLUSTER
 
+# Report done status through label so we can keep the pod up for testing
+NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+kubectl -n "$NAMESPACE" label taskRun "$JOB_ID" sky/state=SUCCEEDED --overwrite
+
 # keep job pod for testing (it will be deleted by studio)
 tail -f > /dev/null
