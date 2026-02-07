@@ -6,7 +6,6 @@ export PYTHONUNBUFFERED=1
 echo "Starting vllm controller"
 cd /opt/densemax/serve
 source .venv/bin/activate
-echo "TP: ${VLLM_TP}"
 nohup uvicorn vllm-controller:app --host 0.0.0.0 --port 9000 --reload --workers 1 > /var/log/vllm-controller.log 2>&1 &
 
 cd /opt/densemax/sky

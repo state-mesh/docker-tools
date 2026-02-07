@@ -107,6 +107,7 @@ RUN mkdir /scripts
 COPY job-entry.sh /usr/bin/job-entry
 COPY job-entry-sky.sh /usr/bin/job-entry-sky
 COPY launch-sky.sh /usr/bin/launch-sky
+COPY down-sky.sh /usr/bin/down-sky
 COPY train/train.sh /usr/bin/train
 COPY train/train-axolotl.sh /usr/bin/train-axolotl
 COPY train/sky/train-sky.sh /usr/bin/train-sky
@@ -125,6 +126,7 @@ COPY train/sky/templates/stop_cluster /root/sky_templates/ray/stop_cluster
 RUN chmod a+x /usr/bin/job-entry* \
     && chmod a+x /usr/bin/train* \
     && chmod a+x /usr/bin/launch-sky \
+    && chmod a+x /usr/bin/down-sky \
     && chmod a+x /usr/bin/quantize \
     && chmod a+x /usr/bin/eval \
     && chmod a+x /usr/bin/aim_copy_runs.py \
