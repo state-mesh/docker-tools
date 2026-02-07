@@ -46,7 +46,10 @@ done
 
 # Launch training in the sky
 export SKYPILOT_DISABLE_USAGE_COLLECTION=1
+set +e
 sky launch -dy -c "$CLUSTER" "$CONFIG"
+rc=$?
+set -e
 
 python -c 'from aim import Repo; Repo("/tmp/aim", init=True)'
 rsync -Pavz --delete "/tmp/aim/" "${CLUSTER}:/opt/aim/"
