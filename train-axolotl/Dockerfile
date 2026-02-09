@@ -1,7 +1,9 @@
 ############################
 # Builder: create axolotl venv
 ############################
-FROM nvcr.io/nvidia/cuda:12.9.1-cudnn-devel-ubuntu24.04 AS builder
+FROM nvcr.io/nvidia/cuda:12.8.0-cudnn-devel-ubuntu24.04 AS builder
+# If nvcr.io doesn't have that exact tag in your account/region, use:
+# FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV UV_HTTP_TIMEOUT=500
@@ -20,12 +22,12 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
 WORKDIR /opt/densemax/train-axolotl
 RUN uv venv --seed --python 3.12
 
-# Torch cu129 (as in your original axolotl section)
+# Torch cu128 (CUDA 12.8)
 RUN uv pip install \
-    "torch==2.8.0+cu129" "torchvision==0.23.0+cu129" \
-    --index-url https://download.pytorch.org/whl/cu129
+    "torch==2.8.0+cu128" "torchvision==0.23.0+cu128" \
+    --index-url https://download.pytorch.org/whl/cu128
 
-# flash-attn wheel
+# flash-attn wheel (CUDA 12.x; use cu12 + torch2.8 + cp312 + cxx11abiTRUE)
 RUN uv pip install \
     https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp312-cp312-linux_x86_64.whl
 
@@ -47,14 +49,16 @@ RUN uv pip uninstall bitsandbytes || true \
     && uv pip install /tmp/bitsandbytes-0.48.1+invergent-cp312-cp312-linux_x86_64.whl \
     && rm -f /tmp/bitsandbytes-0.48.1+invergent-cp312-cp312-linux_x86_64.whl
 
-
 RUN /opt/densemax/train-axolotl/.venv/bin/axolotl --help >/dev/null
 
 
 ############################
 # Runtime: minimal
 ############################
-FROM nvcr.io/nvidia/cuda:12.9.1-cudnn-runtime-ubuntu24.04 AS runtime
+FROM nvcr.io/nvidia/cuda:12.8.0-cudnn-runtime-ubuntu24.04 AS runtime
+# If nvcr.io doesn't have that exact tag in your account/region, use:
+# FROM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu24.04 AS runtime
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Minimal OS deps to run python venv + native wheels
@@ -87,4 +91,4 @@ RUN chmod a+x /usr/bin/job-entry* \
     && chmod a+x /root/sky_templates/ray/start_cluster \
     && chmod a+x /root/sky_templates/ray/stop_cluster
 
-ENTRYPOINT ["/bin/bash","-c"]
+CMD ["sleep", "infinity"]
