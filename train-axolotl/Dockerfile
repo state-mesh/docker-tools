@@ -1,9 +1,7 @@
 ############################
-# Builder: create axolotl venv
+# Builder: create Axolotl venv
 ############################
 FROM nvcr.io/nvidia/cuda:12.8.0-cudnn-devel-ubuntu24.04 AS builder
-# If nvcr.io doesn't have that exact tag in your account/region, use:
-# FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV UV_HTTP_TIMEOUT=500
@@ -27,7 +25,7 @@ RUN uv pip install \
     "torch==2.8.0+cu128" "torchvision==0.23.0+cu128" \
     --index-url https://download.pytorch.org/whl/cu128
 
-# flash-attn wheel (CUDA 12.x; use cu12 + torch2.8 + cp312 + cxx11abiTRUE)
+# flash-attn wheel
 RUN uv pip install \
     https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp312-cp312-linux_x86_64.whl
 
@@ -44,10 +42,10 @@ RUN git clone --depth=1 https://github.com/invergent-ai/axolotl.git /opt/densema
     && uv pip install --no-build-isolation -e /opt/densemax/train-axolotl/axolotl[deepspeed,flash-attn,ring-flash-attn,optimizers,ray]
 
 # Custom bitsandbytes wheel
-ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/bitsandbytes-0.48.1%2Binvergent-cp312-cp312-linux_x86_64.whl /tmp/bitsandbytes-0.48.1+invergent-cp312-cp312-linux_x86_64.whl
+ADD https://densemax.s3.eu-central-1.amazonaws.com/base-image/bitsandbytes-0.48.1-cp312-cp312-linux_x86_64.whl /tmp/bitsandbytes-0.48.1-cp312-cp312-linux_x86_64.whl
 RUN uv pip uninstall bitsandbytes || true \
-    && uv pip install /tmp/bitsandbytes-0.48.1+invergent-cp312-cp312-linux_x86_64.whl \
-    && rm -f /tmp/bitsandbytes-0.48.1+invergent-cp312-cp312-linux_x86_64.whl
+    && uv pip install /tmp/bitsandbytes-0.48.1-cp312-cp312-linux_x86_64.whl \
+    && rm -f /tmp/bitsandbytes-0.48.1-cp312-cp312-linux_x86_64.whl
 
 RUN /opt/densemax/train-axolotl/.venv/bin/axolotl --help >/dev/null
 
@@ -55,11 +53,16 @@ RUN /opt/densemax/train-axolotl/.venv/bin/axolotl --help >/dev/null
 ############################
 # Runtime: minimal
 ############################
-FROM nvcr.io/nvidia/cuda:12.8.0-cudnn-runtime-ubuntu24.04 AS runtime
-# If nvcr.io doesn't have that exact tag in your account/region, use:
-# FROM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu24.04 AS runtime
+FROM nvcr.io/nvidia/cuda:12.8.0-cudnn-devel-ubuntu24.04 AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
+
+RUN mkdir -p /opt/densemax/train-axolotl
+RUN mkdir -p /root/.triton/autotune /root/.triton/cache \
+ && chmod -R 777 /root/.triton
+
+COPY --from=builder /opt/densemax/train-axolotl/.venv /opt/densemax/train-axolotl/.venv
+COPY --from=builder /opt/densemax/train-axolotl/axolotl /opt/densemax/train-axolotl/axolotl
 
 # Minimal OS deps to run python venv + native wheels
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -72,11 +75,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libuuid1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Layout expected by job-entry-sky.sh and train-sky-axolotl.sh
-RUN mkdir -p /opt/densemax/train-axolotl
-
-COPY --from=builder /opt/densemax/train-axolotl/.venv /opt/densemax/train-axolotl/.venv
-COPY --from=builder /opt/densemax/train-axolotl/axolotl /opt/densemax/train-axolotl/axolotl
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-dev build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 # Scripts
 COPY job-entry-sky.sh /usr/bin/job-entry-sky
