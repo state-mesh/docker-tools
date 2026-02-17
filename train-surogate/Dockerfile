@@ -39,7 +39,7 @@ RUN /opt/densemax/train/.venv/bin/python -c "import torch; import surogate; prin
 ############################
 # Runtime: minimal
 ############################
-FROM nvcr.io/nvidia/cuda:12.8.0-cudnn-devel-ubuntu24.04 AS runtime
+FROM nvcr.io/nvidia/cuda:12.8.0-cudnn-runtime-ubuntu24.04 AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -74,6 +74,6 @@ COPY train/sky/templates/stop_cluster /root/sky_templates/ray/stop_cluster
 RUN chmod a+x /usr/bin/job-entry* \
     && chmod a+x /usr/bin/train* \
     && chmod a+x /root/sky_templates/ray/start_cluster \
-    && chmod a+x /root/sky_templates/ray/stop_cluster \
+    && chmod a+x /root/sky_templates/ray/stop_cluster
 
 CMD ["sleep", "infinity"]
