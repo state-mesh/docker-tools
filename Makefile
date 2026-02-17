@@ -1,5 +1,5 @@
 REPO ?= ragflow
-NAME = registry.densemax.local/statemesh/$(REPO)
+NAME = ghcr.io/invergent-ai/$(REPO)
 VERSION = 1.0.0
 
 .PHONY: build tag tag-latest push push-latest release
