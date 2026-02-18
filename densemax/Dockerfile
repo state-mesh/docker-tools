@@ -42,7 +42,7 @@ WORKDIR /opt/densemax/train
 RUN uv venv --python 3.12
 RUN uv pip install wandb aim envsubst "ray==2.50.1" \
     && uv pip install "torch==2.9.1+cu129" "torchvision==0.24.1+cu129" "torchaudio==2.9.1+cu129" --index-url https://download.pytorch.org/whl/cu129 \
-    && uv pip install https://github.com/invergent-ai/surogate/releases/download/v0.0.7/surogate-0.0.7+cu129-cp312-abi3-manylinux_2_39_x86_64.whl --torch-backend=auto
+    && uv pip install https://github.com/invergent-ai/surogate/releases/download/v0.1.4/surogate-0.1.4+cu129-cp312-abi3-manylinux_2_39_x86_64.whl --torch-backend=auto
 
 # Training with Axolotl
 WORKDIR /opt/densemax/train-axolotl
