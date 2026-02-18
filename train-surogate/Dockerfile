@@ -1,5 +1,7 @@
 FROM ghcr.io/invergent-ai/surogate:latest-cu128
 
+USER root
+
 # Scripts
 COPY job-entry-sky.sh /usr/bin/job-entry-sky
 COPY train/sky/train-sky.sh /usr/bin/train-sky
@@ -13,4 +15,5 @@ RUN chmod a+x /usr/bin/job-entry* \
     && chmod a+x /root/sky_templates/ray/start_cluster \
     && chmod a+x /root/sky_templates/ray/stop_cluster
 
-CMD ["sleep", "infinity"]
+ENTRYPOINT ["/bin/bash","-c"]
+CMD ["sleep infinity"]
