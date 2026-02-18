@@ -2,6 +2,8 @@ FROM ghcr.io/invergent-ai/surogate:latest-cu128
 
 USER root
 
+RUN uv pip install aim
+
 # Scripts
 COPY job-entry-sky.sh /usr/bin/job-entry-sky
 COPY train/sky/train-sky.sh /usr/bin/train-sky
