@@ -2,6 +2,7 @@
 
 set -e
 mkdir -p /opt/aim
+mkdir -p /opt/work/outputs
 cd /opt/densemax/train-axolotl
 
 export PYTHONUNBUFFERED=1
