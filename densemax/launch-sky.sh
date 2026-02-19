@@ -124,6 +124,8 @@ else
   if [[ "$USE_AXOLOTL_TRAINING_LIBRARY" == "true" ]]; then
       if [[ "${MERGE_LORA:-false}" == "true" ]]; then
         echo "Merging LoRA into the base model"
+        cd /opt/densemax/train-axolotl
+        source .venv/bin/activate
         .venv/bin/axolotl merge-lora $CONFIG --lora-model-dir=$WORK_DIR/outputs/lora/ \
                           --output-dir=$WORK_DIR/outputs/
         echo "Uploading merged model"
@@ -143,6 +145,9 @@ fi
 echo "Commiting lakefs branch"
 lakectl commit lakefs://$SOURCE_REPO/$BRANCH --message "Fine-tuning of $BASE_MODEL" \
 --meta lora_adapter="$LORA_ADAPTER" --meta source_model="$BASE_MODEL"
+
+cd /opt/densemax/sky
+source .venv/bin/activate
 
 echo "Shutting down cluster"
 sky down -y $CLUSTER
