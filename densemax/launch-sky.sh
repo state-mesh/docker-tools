@@ -13,7 +13,9 @@ source .venv/bin/activate
 
 echo "Preparing sky config file"
 CONFIG=$WORK_DIR/config.yaml
+CONFIG_AXOLOTL=$WORK_DIR/config_axolotl.yaml
 echo "$SKY_CONFIG" > $CONFIG
+echo "$AXOLOTL_CONFIG" > $CONFIG_AXOLOTL
 
 CLUSTER="${JOB_ID}-cluster"
 SOURCE_REPO="${BASE_MODEL%%/*}"
@@ -126,7 +128,7 @@ else
         echo "Merging LoRA into the base model"
         cd /opt/densemax/train-axolotl
         source .venv/bin/activate
-        .venv/bin/axolotl merge-lora $CONFIG --lora-model-dir=$WORK_DIR/outputs/lora/ \
+        .venv/bin/axolotl merge-lora $CONFIG_AXOLOTL --lora-model-dir=$WORK_DIR/outputs/lora/ \
                           --output-dir=$WORK_DIR/outputs/
         echo "Uploading merged model"
         lakectl fs upload -rs $WORK_DIR/outputs/merged/ lakefs://$SOURCE_REPO/$BRANCH/
