@@ -19,8 +19,5 @@ RUN chmod a+x /usr/bin/job-entry* \
     && chmod a+x /root/sky_templates/ray/stop_cluster
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-WORKDIR /opt/densemax/train
-RUN uv venv --seed --python 3.12
-
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["sleep","infinity"]
