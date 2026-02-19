@@ -21,7 +21,6 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 WORKDIR /opt/densemax/train
 RUN uv venv --seed --python 3.12
-WORKDIR /home/surogate
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["sleep","infinity"]
