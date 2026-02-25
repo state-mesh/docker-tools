@@ -26,8 +26,6 @@ cleanup() {
   echo "Cleaning up..."
 
   # Stop background processes
-  kill "$LOG_FOLLOW_PID" > /dev/null 2>&1 || true
-  wait "$LOG_FOLLOW_PID" > /dev/null 2>&1 || true
   kill "$AIM_SYNC_PID" > /dev/null 2>&1 || true
   wait "$AIM_SYNC_PID" > /dev/null 2>&1 || true
 
@@ -43,7 +41,6 @@ cleanup() {
   exit "$exit_code"
 }
 trap cleanup EXIT
-LOG_FOLLOW_PID=""
 AIM_SYNC_PID=""
 [[ "${LORA:-false}" == "true" ]] && [[ "${MERGE_LORA:-false}" != "true" ]] && LORA_ADAPTER=true || LORA_ADAPTER=false
 IFS=',' read -ra DATASETS <<< "$DATASET"
@@ -107,29 +104,19 @@ mkdir -p /tmp/aim
 ) &
 AIM_SYNC_PID=$!
 
-# Stream sky logs
+# Stream sky logs and wait for job to finish.
+# `sky logs --follow` blocks until the job reaches a terminal state, then exits
+# with 0 on success or non-zero on failure.
 echo "SKY_STAGE: TRAINING_RUNNING"
-sky logs "$CLUSTER" --follow --tail 1000 &
-LOG_FOLLOW_PID=$!
+set +e
+sky logs "$CLUSTER" --follow --tail 1000
+JOB_RC=$?
+set -e
 
 JOB_OK=0
-while true; do
-  # --status: return 0 if succeeded; otherwise non-zero
-  if sky logs "$CLUSTER" --status > /dev/null 2>&1; then
-    JOB_OK=1
-    break
-  fi
-
-  rc=$?
-  # From docs: 100 failed, 101 not finished, 102 not found, 103 cancelled.
-  if [[ "$rc" -eq 100 || "$rc" -eq 102 || "$rc" -eq 103 ]]; then
-    JOB_OK=0
-    break
-  fi
-
-  # rc=101 (not finished)
-  sleep 5
-done
+if [[ "$JOB_RC" -eq 0 ]]; then
+  JOB_OK=1
+fi
 
 if [[ "$JOB_OK" -ne 1 ]]; then
   echo "SKY_STAGE: FAILED:training_job_failed"
