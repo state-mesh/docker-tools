@@ -19,6 +19,32 @@ echo "$AXOLOTL_CONFIG" > $CONFIG_AXOLOTL
 
 CLUSTER="${JOB_ID}-cluster"
 SOURCE_REPO="${BASE_MODEL%%/*}"
+
+# Ensure sky cluster is torn down on any exit (success or failure)
+cleanup() {
+  local exit_code=$?
+  echo "Cleaning up..."
+
+  # Stop background processes
+  kill "$LOG_FOLLOW_PID" > /dev/null 2>&1 || true
+  wait "$LOG_FOLLOW_PID" > /dev/null 2>&1 || true
+  kill "$AIM_SYNC_PID" > /dev/null 2>&1 || true
+  wait "$AIM_SYNC_PID" > /dev/null 2>&1 || true
+
+  # Always tear down the sky cluster if it was launched
+  if [[ -n "${CLUSTER_LAUNCHED:-}" ]]; then
+    echo "SKY_STAGE: SHUTTING_DOWN"
+    echo "Shutting down cluster"
+    cd /opt/densemax/sky
+    source .venv/bin/activate
+    sky down -y "$CLUSTER" || true
+  fi
+
+  exit "$exit_code"
+}
+trap cleanup EXIT
+LOG_FOLLOW_PID=""
+AIM_SYNC_PID=""
 [[ "${LORA:-false}" == "true" ]] && [[ "${MERGE_LORA:-false}" != "true" ]] && LORA_ADAPTER=true || LORA_ADAPTER=false
 IFS=',' read -ra DATASETS <<< "$DATASET"
 
@@ -59,6 +85,7 @@ if [[ "$rc" -ne 0 ]]; then
   echo "SKY_STAGE: FAILED:sky_launch_failed_rc=$rc"
   exit 1
 fi
+CLUSTER_LAUNCHED=1
 echo "SKY_STAGE: CLUSTER_UP"
 
 python -c 'from aim import Repo; Repo("/tmp/aim", init=True)'
@@ -103,13 +130,6 @@ while true; do
   # rc=101 (not finished)
   sleep 5
 done
-
-# Stop background log tail + aim sync
-kill "$LOG_FOLLOW_PID" > /dev/null 2>&1 || true
-wait "$LOG_FOLLOW_PID" > /dev/null 2>&1 || true
-
-kill "$AIM_SYNC_PID" > /dev/null 2>&1 || true
-wait "$AIM_SYNC_PID" > /dev/null 2>&1 || true
 
 if [[ "$JOB_OK" -ne 1 ]]; then
   echo "SKY_STAGE: FAILED:training_job_failed"
@@ -159,13 +179,6 @@ fi
 echo "Commiting lakefs branch"
 lakectl commit lakefs://$SOURCE_REPO/$BRANCH --message "Fine-tuning of $BASE_MODEL" \
 --meta lora_adapter="$LORA_ADAPTER" --meta source_model="$BASE_MODEL"
-
-cd /opt/densemax/sky
-source .venv/bin/activate
-
-echo "SKY_STAGE: SHUTTING_DOWN"
-echo "Shutting down cluster"
-sky down -y $CLUSTER
 
 echo "SKY_STAGE: SUCCEEDED"
 
