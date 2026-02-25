@@ -31,6 +31,7 @@ def start_vllm():
         "--dtype", "half",
         "--max-model-len", "8192",
         "-tp", VLLM_TP,
+        "--enforce-eager",
         "--port", str(VLLM_PORT),
         "--host", "0.0.0.0"
     ]
