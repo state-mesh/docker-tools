@@ -175,6 +175,11 @@ lakectl commit lakefs://$SOURCE_REPO/$BRANCH --message "Fine-tuning of $BASE_MOD
 
 echo "SKY_STAGE: SUCCEEDED"
 
+# Tear down the ray cluster now that training is complete
+echo "SKY_STAGE: SHUTTING_DOWN"
+sky down -y "$CLUSTER" || true
+unset CLUSTER_LAUNCHED  # prevent double teardown in cleanup trap
+
 # Report done status through label so we can keep the pod up for testing
 NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
 kubectl -n "$NAMESPACE" label taskRun "$JOB_ID" sky/state=SUCCEEDED --overwrite
