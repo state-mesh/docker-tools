@@ -7,6 +7,11 @@ mkdir -p /opt/work/outputs
 export PYTHONUNBUFFERED=1
 CONFIG=$WORK_DIR/config_solved.yaml
 
+# Write exit code to sentinel file on any exit so the orchestrator
+# can detect job completion without relying on SkyPilot job tracking.
+METRICS_PID=""
+trap 'rc=$?; kill "$METRICS_PID" > /dev/null 2>&1 || true; wait "$METRICS_PID" > /dev/null 2>&1 || true; echo "$rc" > /tmp/train_exit_code; exit "$rc"' EXIT
+
 echo "Preparing config file"
 echo "$AXOLOTL_CONFIG" > $CONFIG
 
@@ -17,9 +22,3 @@ python /usr/bin/metrics_reporter.py &
 METRICS_PID=$!
 
 surogate sft $CONFIG
-TRAIN_RC=$?
-
-kill "$METRICS_PID" > /dev/null 2>&1 || true
-wait "$METRICS_PID" > /dev/null 2>&1 || true
-
-exit $TRAIN_RC

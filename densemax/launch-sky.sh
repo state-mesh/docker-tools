@@ -26,6 +26,8 @@ cleanup() {
   echo "Cleaning up..."
 
   # Stop background processes
+  kill "$LOG_FOLLOW_PID" > /dev/null 2>&1 || true
+  wait "$LOG_FOLLOW_PID" > /dev/null 2>&1 || true
   kill "$AIM_SYNC_PID" > /dev/null 2>&1 || true
   wait "$AIM_SYNC_PID" > /dev/null 2>&1 || true
 
@@ -41,6 +43,7 @@ cleanup() {
   exit "$exit_code"
 }
 trap cleanup EXIT
+LOG_FOLLOW_PID=""
 AIM_SYNC_PID=""
 [[ "${LORA:-false}" == "true" ]] && [[ "${MERGE_LORA:-false}" != "true" ]] && LORA_ADAPTER=true || LORA_ADAPTER=false
 IFS=',' read -ra DATASETS <<< "$DATASET"
@@ -104,23 +107,26 @@ mkdir -p /tmp/aim
 ) &
 AIM_SYNC_PID=$!
 
-# Stream sky logs and wait for job to finish.
-# `sky logs --follow` blocks until the job reaches a terminal state, then exits
-# with 0 on success or non-zero on failure.
+# Stream sky logs in background for visibility
 echo "SKY_STAGE: TRAINING_RUNNING"
-set +e
-sky logs "$CLUSTER" --follow --tail 1000
-JOB_RC=$?
-set -e
+sky logs "$CLUSTER" --follow --tail 1000 &
+LOG_FOLLOW_PID=$!
 
-JOB_OK=0
-if [[ "$JOB_RC" -eq 0 ]]; then
-  JOB_OK=1
-fi
+# Wait for training to complete by polling for the sentinel file written
+# by train-sky.sh on exit. This bypasses SkyPilot's job tracking which
+# can get stuck when the training process crashes but the pod stays alive.
+TRAIN_EXIT_CODE=""
+while true; do
+  TRAIN_EXIT_CODE=$(ssh "$CLUSTER" "cat /tmp/train_exit_code 2>/dev/null" 2>/dev/null) && break
+  sleep 5
+done
 
-if [[ "$JOB_OK" -ne 1 ]]; then
+kill "$LOG_FOLLOW_PID" > /dev/null 2>&1 || true
+wait "$LOG_FOLLOW_PID" > /dev/null 2>&1 || true
+
+if [[ "$TRAIN_EXIT_CODE" -ne 0 ]]; then
   echo "SKY_STAGE: FAILED:training_job_failed"
-  echo "Job did not succeed (see logs above). Skipping final rsync."
+  echo "Training exited with code $TRAIN_EXIT_CODE. Skipping final rsync."
   exit 1
 fi
 
