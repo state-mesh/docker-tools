@@ -2,6 +2,10 @@ FROM ghcr.io/invergent-ai/surogate:latest-cu128
 
 USER root
 
+RUN apt-get update \
+    && apt-get install -y socat netcat-openbsd rsync wget gcc patch pciutils openssh-server \
+    && apt-get clean
+
 RUN uv pip install aim
 
 # Scripts
