@@ -33,6 +33,7 @@ if [ -n "$RUNPOD_API_KEY" ]; then
   printf "[default]\napi_key = \"%s\"\n" "$RUNPOD_API_KEY" > ~/.runpod/config.toml
 fi
 
+echo "SKY_STAGE: DOWNLOADING_MODEL"
 echo "Downloading model ${BASE_MODEL}"
 lakectl fs download -r lakefs://$BASE_MODEL/ $WORK_DIR/model
 
@@ -47,11 +48,18 @@ for ds in "${DATASETS[@]}"; do
 done
 
 # Launch training in the sky
+echo "SKY_STAGE: LAUNCHING_CLUSTER"
 export SKYPILOT_DISABLE_USAGE_COLLECTION=1
 set +e
 sky launch -dy -c "$CLUSTER" "$CONFIG"
 rc=$?
 set -e
+
+if [[ "$rc" -ne 0 ]]; then
+  echo "SKY_STAGE: FAILED:sky_launch_failed_rc=$rc"
+  exit 1
+fi
+echo "SKY_STAGE: CLUSTER_UP"
 
 python -c 'from aim import Repo; Repo("/tmp/aim", init=True)'
 rsync -Pavz --delete "/tmp/aim/" "${CLUSTER}:/opt/aim/"
@@ -73,6 +81,7 @@ mkdir -p /tmp/aim
 AIM_SYNC_PID=$!
 
 # Stream sky logs
+echo "SKY_STAGE: TRAINING_RUNNING"
 sky logs "$CLUSTER" --follow --tail 1000 &
 LOG_FOLLOW_PID=$!
 
@@ -103,15 +112,18 @@ kill "$AIM_SYNC_PID" > /dev/null 2>&1 || true
 wait "$AIM_SYNC_PID" > /dev/null 2>&1 || true
 
 if [[ "$JOB_OK" -ne 1 ]]; then
+  echo "SKY_STAGE: FAILED:training_job_failed"
   echo "Job did not succeed (see logs above). Skipping final rsync."
   exit 1
 fi
 
 # Final rsync after job success (remote -> local)
+echo "SKY_STAGE: SYNCING_OUTPUTS"
 mkdir -p $WORK_DIR/outputs
 rsync -Pavz "${CLUSTER}:${WORK_DIR}/outputs/" "${WORK_DIR}/outputs/"
 aim_sync
 
+echo "SKY_STAGE: UPLOADING_RESULTS"
 echo "Preparing lakefs branch"
 lakectl branch create lakefs://$SOURCE_REPO/$BRANCH -s lakefs://$BASE_MODEL
 
@@ -151,8 +163,11 @@ lakectl commit lakefs://$SOURCE_REPO/$BRANCH --message "Fine-tuning of $BASE_MOD
 cd /opt/densemax/sky
 source .venv/bin/activate
 
+echo "SKY_STAGE: SHUTTING_DOWN"
 echo "Shutting down cluster"
 sky down -y $CLUSTER
+
+echo "SKY_STAGE: SUCCEEDED"
 
 # Report done status through label so we can keep the pod up for testing
 NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
