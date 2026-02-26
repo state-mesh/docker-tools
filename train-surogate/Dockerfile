@@ -6,12 +6,9 @@ RUN apt-get update \
     && apt-get install -y socat netcat-openbsd rsync wget gcc patch pciutils openssh-server \
     && apt-get clean
 
-RUN uv pip install aim
-
 # Scripts
 COPY job-entry-sky.sh /usr/bin/job-entry-sky
 COPY train/sky/train-sky.sh /usr/bin/train-sky
-COPY train/sky/metrics_reporter.py /usr/bin/metrics_reporter.py
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN mkdir -p /root/sky_templates/ray

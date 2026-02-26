@@ -28,8 +28,8 @@ cleanup() {
   # Stop background processes
   kill "$LOG_FOLLOW_PID" > /dev/null 2>&1 || true
   wait "$LOG_FOLLOW_PID" > /dev/null 2>&1 || true
-  kill "$AIM_SYNC_PID" > /dev/null 2>&1 || true
-  wait "$AIM_SYNC_PID" > /dev/null 2>&1 || true
+  kill "$METRICS_SYNC_PID" > /dev/null 2>&1 || true
+  wait "$METRICS_SYNC_PID" > /dev/null 2>&1 || true
 
   # Always tear down the sky cluster if it was launched
   if [[ -n "${CLUSTER_LAUNCHED:-}" ]]; then
@@ -44,7 +44,7 @@ cleanup() {
 }
 trap cleanup EXIT
 LOG_FOLLOW_PID=""
-AIM_SYNC_PID=""
+METRICS_SYNC_PID=""
 [[ "${LORA:-false}" == "true" ]] && [[ "${MERGE_LORA:-false}" != "true" ]] && LORA_ADAPTER=true || LORA_ADAPTER=false
 IFS=',' read -ra DATASETS <<< "$DATASET"
 
@@ -88,24 +88,22 @@ fi
 CLUSTER_LAUNCHED=1
 echo "SKY_STAGE: CLUSTER_UP"
 
-python -c 'from aim import Repo; Repo("/tmp/aim", init=True)'
-rsync -Pavz --delete "/tmp/aim/" "${CLUSTER}:/opt/aim/"
+# Sync training metrics file periodically from remote cluster
+REMOTE_METRICS_FILE="/tmp/surogate_metrics.jsonl"
+LOCAL_METRICS_FILE="/tmp/surogate_metrics.jsonl"
+mkdir -p "$(dirname "$LOCAL_METRICS_FILE")"
 
-# Sync AIM metrics periodically
-aim_sync() {
-  rsync -Pavz --delete "${CLUSTER}:/opt/aim/" "/tmp/aim/" > /dev/null 2>&1 || true
-  yes | aim storage --repo /tmp/aim/ reindex > /dev/null 2>&1 || true
-  python /usr/bin/aim_copy_runs.py --src "/tmp/aim/" --dst "/opt/aim/" > /dev/null 2>&1 || true
+metrics_sync() {
+  rsync -az "${CLUSTER}:${REMOTE_METRICS_FILE}" "$LOCAL_METRICS_FILE" > /dev/null 2>&1 || true
 }
 
-mkdir -p /tmp/aim
 (
   while true; do
-    aim_sync
+    metrics_sync
     sleep 5
   done
 ) &
-AIM_SYNC_PID=$!
+METRICS_SYNC_PID=$!
 
 # Stream sky logs in background for visibility
 echo "SKY_STAGE: TRAINING_RUNNING"
@@ -134,7 +132,7 @@ fi
 echo "SKY_STAGE: SYNCING_OUTPUTS"
 mkdir -p $WORK_DIR/outputs
 rsync -Pavz "${CLUSTER}:${WORK_DIR}/outputs/" "${WORK_DIR}/outputs/"
-aim_sync
+metrics_sync
 
 echo "SKY_STAGE: UPLOADING_RESULTS"
 echo "Preparing lakefs branch"
